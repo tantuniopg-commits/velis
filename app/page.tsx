@@ -194,11 +194,6 @@ function Landing() {
   const { setRitualLockActive, introActive } = useAppNav()
   const { t, locale } = useLocale()
   const [mounted, setMounted] = useState(false)
-  // Mount'taki "yarım kalmış ritüeli geri yükle" effect'i çalışıp fazı
-  // kararlaştırana kadar false - o ana kadar <main> boş (düz siyah) kalıyor,
-  // idle ekranın bir frame boyunca boyanıp ritual'e geçişte kırpışmasını
-  // önlüyor (bkz. aşağıdaki geri-yükle effect'i).
-  const [booted, setBooted] = useState(false)
   const [phase, setPhase] = useState<Phase>('idle')
   // Sunucu/istemcinin ilk render'ında AYNI deterministik varsayılanla
   // başlıyor (bkz. lib/ritualConfig.ts) - Developer Panel'in geçersiz
@@ -370,13 +365,6 @@ function Landing() {
   // React state'i sıfırdan başlıyordu. Oturum (bkz. lib/ritualSession.ts)
   // varsa aktivasyon/hazır/ritüel fazına DUVAR SAATİNE göre geri dönüyoruz -
   // ekran dışında geçen süre de sayılıyor. Sadece mount'ta bir kez.
-  //
-  // `booted`: bu effect çalışıp faz kararlaştırılana kadar <main> boş
-  // (düz siyah) render ediliyor - aksi halde ilk frame'de idle ekran
-  // boyanıp, hemen ardından ritual'e geçiş CSS transition'larını tetikliyor
-  // ve "önce eski ekran, sonra doğru ekran" gibi buglu bir kırpışma oluyordu.
-  // Siyah, <main>'in kendi arka planıyla aynı - kullanıcı tek frame'lik
-  // boşluğu görmüyor, sonra `mounted` her zamanki 700ms fade'i yapıyor.
   useEffect(() => {
     const s = loadRitualSession()
     const now = Date.now()
@@ -416,8 +404,6 @@ function Landing() {
       }
       setPhase('ritual')
     }
-
-    setBooted(true)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -640,13 +626,6 @@ function Landing() {
       return
     }
     router.push(dayAdvancedRef.current ? '/aftercare' : '/aftercare?earlyRepeat=1')
-  }
-
-  // Geri-yükle effect'i fazı kararlaştırana kadar düz siyah - Suspense
-  // fallback'iyle ve <main>'in arka planıyla birebir aynı, o yüzden görünmez
-  // bir frame. Ardından normal render + `mounted` fade'i devreye giriyor.
-  if (!booted) {
-    return <main style={{ height: '100dvh', background: '#050505' }} />
   }
 
   return (

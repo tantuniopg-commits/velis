@@ -1,117 +1,58 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { apiBase } from './lib/authApi'
+import { useCallback, useEffect, useState } from 'react'
 import { useLocale } from './contexts/LocaleContext'
 import VelisMark from './VelisMark'
 import { FONT_SANS } from './lib/typography'
 
-// VELIS bilinçli olarak ÇEVRİMİÇİ bir uygulama - hesap, ilerleme senkronu,
-// leaderboard hepsi sunucuya bağlı. İnternet yoksa (uçak modu vb.) uygulamaya
-// HİÇ girilemesin: sadece amblem + kısa bir satır görünür, arkadaki hiçbir
-// şey yüklenmez.
+// VELIS çevrimiçi bir uygulama - hesap, ilerleme senkronu, leaderboard hepsi
+// sunucuya bağlı. İnternet YOKKEN (uçak modu vb.) uygulamaya girilemesin:
+// sadece amblem görünür.
 //
-// - İLK açılış: bağlantı DOĞRULANANA kadar children hiç render edilmiyor
-//   (sert kapı). Çevrimdışıysa amblem ekranı, giriş yok.
-// - Oturum sırasında bağlantı düşerse: children MOUNT kalıyor (ritüel/ekran
-//   state'i kaybolmasın), üzerine tam ekran amblem katmanı biniyor. Bağlantı
-//   dönünce katman kalkıyor, kaldığın yerden devam.
-//
-// "Gerçekten internet var mı" testi: navigator.onLine güvenilmez (captive
-// portal / WAN'sız router'da true döner), o yüzden asıl kontrol kendi
-// /health ucumuza atılan bir fetch.
-
-type Status = 'checking' | 'online' | 'offline'
-
-const PROBE_TIMEOUT_MS = 7000
-const RETRY_MS = 4000
-
-async function probe(): Promise<boolean> {
-  const base = apiBase()
-  // API yapılandırılmamışsa (saf web/dev) kapıyı hiç çalıştırma.
-  if (!base) return true
-  try {
-    const ctrl = new AbortController()
-    const t = setTimeout(() => ctrl.abort(), PROBE_TIMEOUT_MS)
-    const res = await fetch(`${base}/health`, { signal: ctrl.signal, cache: 'no-store' })
-    clearTimeout(t)
-    return res.ok
-  } catch {
-    return false
-  }
-}
+// Kapı SADECE `navigator.onLine`'a bakıyor - kendi /health ucumuza bloklayan
+// bir istek ATMIYOR. Nedeni: o istek yavaş bir ağda (ör. App Review'ın
+// proxy'si) zaman aşımına uğrayıp interneti olan kullanıcıyı bile "offline"
+// ekranına kilitliyordu. `navigator.onLine === false` uçak modunu / radyosuz
+// durumu güvenilir yakalar; "wifi var ama internet yok" (captive portal)
+// gibi kenar durumda uygulama açılır ama API çağrıları zaten kendi
+// "sunucuya ulaşılamadı" mesajlarıyla nazikçe başarısız olur.
 
 export default function ConnectionGate({ children }: { children: React.ReactNode }) {
-  const [status, setStatus] = useState<Status>('checking')
-  const everOnlineRef = useRef(false)
-  const [everOnline, setEverOnline] = useState(false)
+  // SSR/ilk render her zaman "çevrimiçi" varsayar (deterministik, hydration-
+  // safe). Gerçek durum mount sonrası okunuyor.
+  const [offline, setOffline] = useState(false)
 
-  const check = useCallback(async () => {
-    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-      setStatus('offline')
-      return
-    }
-    const ok = await probe()
-    if (ok) {
-      if (!everOnlineRef.current) {
-        everOnlineRef.current = true
-        setEverOnline(true)
-      }
-      setStatus('online')
-    } else {
-      setStatus('offline')
-    }
+  const sync = useCallback(() => {
+    setOffline(typeof navigator !== 'undefined' && navigator.onLine === false)
   }, [])
 
   useEffect(() => {
-    check()
-    const onOnline = () => check()
-    const onOffline = () => setStatus('offline')
+    sync()
+    const onOnline = () => setOffline(false)
+    const onOffline = () => setOffline(true)
     window.addEventListener('online', onOnline)
     window.addEventListener('offline', onOffline)
+    // Uygulama arka plandan öne gelince tazele (uçak modu açıp kapatma).
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') sync()
+    }
+    document.addEventListener('visibilitychange', onVisible)
     return () => {
       window.removeEventListener('online', onOnline)
       window.removeEventListener('offline', onOffline)
+      document.removeEventListener('visibilitychange', onVisible)
     }
-  }, [check])
+  }, [sync])
 
-  // Çevrimdışıyken düzenli tekrar dene - internet gelince kendiliğinden açılsın.
-  useEffect(() => {
-    if (status !== 'offline') return
-    const id = setInterval(check, RETRY_MS)
-    return () => clearInterval(id)
-  }, [status, check])
-
-  // Uygulama arka plandan öne gelince tazele (uçak modu açıp kapatma senaryosu).
-  useEffect(() => {
-    const onVisible = () => {
-      if (document.visibilityState === 'visible') check()
-    }
-    document.addEventListener('visibilitychange', onVisible)
-    return () => document.removeEventListener('visibilitychange', onVisible)
-  }, [check])
-
-  // İlk bağlantı henüz doğrulanmadı: sert kapı, children hiç yok.
-  if (!everOnline) {
-    return status === 'offline' ? <OfflineScreen onRetry={check} /> : <CheckingScreen />
-  }
-
-  // Bir kez bağlanıldı: children mount kalır, çevrimdışında üstüne katman biner.
   return (
     <>
       {children}
-      {status === 'offline' && <OfflineScreen onRetry={check} overlay />}
+      {offline && <OfflineScreen onRetry={sync} />}
     </>
   )
 }
 
-// İlk /health kontrolü sürerken - IntroSplash'ın 1. sahnesiyle (saf siyah)
-// birebir aynı, çevrimiçi kullanıcıda göze çarpmadan splash'a akıyor.
-function CheckingScreen() {
-  return <div style={{ position: 'fixed', inset: 0, background: '#050505', zIndex: 9998 }} />
-}
-
-function OfflineScreen({ onRetry, overlay = false }: { onRetry: () => void; overlay?: boolean }) {
+function OfflineScreen({ onRetry }: { onRetry: () => void }) {
   const { t } = useLocale()
   const [mounted, setMounted] = useState(false)
   useEffect(() => {
@@ -133,11 +74,10 @@ function OfflineScreen({ onRetry, overlay = false }: { onRetry: () => void; over
         gap: '30px',
         padding: 'calc(24px + env(safe-area-inset-top)) 32px calc(24px + env(safe-area-inset-bottom))',
         opacity: mounted ? 1 : 0,
-        transition: 'opacity 500ms ease-in-out',
+        transition: 'opacity 400ms ease-in-out',
       }}
       role="alertdialog"
       aria-live="polite"
-      aria-hidden={overlay ? undefined : false}
     >
       <div style={{ transform: 'scale(1.9)' }}>
         <VelisMark />
