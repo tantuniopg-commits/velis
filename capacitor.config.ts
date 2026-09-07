@@ -11,6 +11,14 @@ const config: CapacitorConfig = {
   appId: 'com.forsvelis.app',
   appName: 'Velis',
   webDir: 'out',
+  // WKWebView'in içerik yüklenene kadarki arka planı - varsayılan BEYAZ, bu
+  // yüzden native splash kaybolduktan sonra web ilk kareyi çizene kadar
+  // yarım saniyelik beyaz bir flaş oluyordu. Uygulamanın kendi zeminiyle
+  // (#050505) eşleştiriyoruz - siyahtan siyaha, görünmez geçiş.
+  backgroundColor: '#050505',
+  ios: {
+    backgroundColor: '#050505',
+  },
 };
 
 export default config;
