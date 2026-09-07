@@ -52,3 +52,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Xcode build outputs
+ios/App/build/
+ios/App/build-*/
