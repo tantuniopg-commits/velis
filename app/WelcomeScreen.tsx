@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { UserType } from './lib/onboarding'
 import { FONT_SANS, textColor } from './lib/typography'
 import { isGuideCompleted, setGuideCompleted } from './lib/guide'
@@ -13,15 +13,26 @@ import { useLocale } from './contexts/LocaleContext'
 // (bkz. guide/guideScript.ts WELCOME_LINES, Smoker/Nonsmoker'a göre farklı).
 // Guide son satırına dokunulunca (bu zaten "anladım" dokunuşu) KENDİLİĞİNDEN
 // devam ediyor - ayrıca bir "boşa dokunuş" beklemiyor.
-
-const EXIT_MS = 400
+//
+// NOT: Eskiden çıkışta bir setTimeout ile fade yapıyordu. O zamanlayıcı
+// iPad WKWebView'de tetiklenmezse ekran opacity:0 ama tam ekran kalıp TÜM
+// dokunuşları yutuyordu (arkadaki ritüel ekranı görünür ama tıklanamaz -
+// App Review 2.1a "unresponsive after onboarding"). Artık onContinue()
+// doğrudan çağrılıyor; geçiş yumuşaklığını Landing'in kendi mount fade'i
+// sağlıyor.
 
 export default function WelcomeScreen({ onContinue, userType }: { onContinue: () => void; userType: UserType }) {
   const { locale } = useLocale()
-  const [exiting, setExiting] = useState(false)
   // VELIS Guide - sadece gerçek ilk kullanıcıda, "tamamlandı" bayrağı
   // set edilene (Skip veya son adım) kadar hiç kaybolmuyor.
   const [showGuide, setShowGuide] = useState(false)
+  const donRef = useRef(false)
+
+  const handleContinue = () => {
+    if (donRef.current) return
+    donRef.current = true
+    onContinue()
+  }
 
   useEffect(() => {
     if (isGuideCompleted()) {
@@ -34,11 +45,6 @@ export default function WelcomeScreen({ onContinue, userType }: { onContinue: ()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const handleContinue = () => {
-    setExiting(true)
-    setTimeout(onContinue, EXIT_MS)
-  }
-
   return (
     <div
       style={{
@@ -46,8 +52,6 @@ export default function WelcomeScreen({ onContinue, userType }: { onContinue: ()
         inset: 0,
         zIndex: 40,
         background: '#050505',
-        opacity: exiting ? 0 : 1,
-        transition: `opacity ${EXIT_MS}ms ease-in-out`,
       }}
     >
       <div

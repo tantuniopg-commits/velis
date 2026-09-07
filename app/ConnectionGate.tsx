@@ -54,11 +54,6 @@ export default function ConnectionGate({ children }: { children: React.ReactNode
 
 function OfflineScreen({ onRetry }: { onRetry: () => void }) {
   const { t } = useLocale()
-  const [mounted, setMounted] = useState(false)
-  useEffect(() => {
-    const id = setTimeout(() => setMounted(true), 40)
-    return () => clearTimeout(id)
-  }, [])
 
   return (
     <div
@@ -73,8 +68,6 @@ function OfflineScreen({ onRetry }: { onRetry: () => void }) {
         justifyContent: 'center',
         gap: '30px',
         padding: 'calc(24px + env(safe-area-inset-top)) 32px calc(24px + env(safe-area-inset-bottom))',
-        opacity: mounted ? 1 : 0,
-        transition: 'opacity 400ms ease-in-out',
       }}
       role="alertdialog"
       aria-live="polite"

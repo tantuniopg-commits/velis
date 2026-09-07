@@ -53,9 +53,15 @@ const STAGE_ORDER: Stage[] = ['black', 'appear', 'pulse', 'descend', 'glow', 'ri
 export default function IntroSplash({ onFinish }: { onFinish: () => void }) {
   const [stage, setStage] = useState<Stage>('black')
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([])
+  const finishedRef = useRef(false)
 
   useEffect(() => {
     const timers = timersRef.current
+    const finish = () => {
+      if (finishedRef.current) return
+      finishedRef.current = true
+      onFinish()
+    }
     const schedule = (fn: () => void, delay: number) => {
       timers.push(setTimeout(fn, delay))
     }
@@ -73,18 +79,21 @@ export default function IntroSplash({ onFinish }: { onFinish: () => void }) {
       () => setStage('final'),
       BLACK_MS + APPEAR_MS + PULSE_MS + DESCEND_MS + GLOW_MS + RING_GROW_MS + SETTLE_MS + TEXT_FADE_MS
     )
-    schedule(
-      () => onFinish(),
+    const total =
       BLACK_MS +
-        APPEAR_MS +
-        PULSE_MS +
-        DESCEND_MS +
-        GLOW_MS +
-        RING_GROW_MS +
-        SETTLE_MS +
-        TEXT_FADE_MS +
-        FINAL_HOLD_MS
-    )
+      APPEAR_MS +
+      PULSE_MS +
+      DESCEND_MS +
+      GLOW_MS +
+      RING_GROW_MS +
+      SETTLE_MS +
+      TEXT_FADE_MS +
+      FINAL_HOLD_MS
+    schedule(() => finish(), total)
+    // Son çare: yukarıdaki zamanlayıcı herhangi bir nedenle kaybolursa
+    // (WKWebView throttling vb.) splash tam-ekran takılı kalmasın - finish()
+    // idempotent (bkz. finishedRef).
+    schedule(() => finish(), total + 4000)
     return () => timers.forEach(clearTimeout)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])

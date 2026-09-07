@@ -163,6 +163,16 @@ function AftercareContent() {
     schedule(() => setButtonVisible(true), BUTTON_MS)
     schedule(() => setXpVisible(true), XP_MS)
     schedule(() => setXpSettled(true), XP_SETTLE_MS)
+    // Son çare: reveal zamanlayıcıları WKWebView throttling'de kaybolursa
+    // Continue butonu asla tıklanabilir hale gelmez ve ekran takılır. Bu
+    // tek zamanlayıcı her şeyi açığa çıkarır.
+    schedule(() => {
+      setLogoVisible(true)
+      setHeadlineVisible(true)
+      setButtonVisible(true)
+      setXpVisible(true)
+      setXpSettled(true)
+    }, XP_SETTLE_MS + 3000)
     return () => timers.forEach(clearTimeout)
   }, [])
 
@@ -408,7 +418,6 @@ function AftercareContent() {
             opacity: buttonVisible ? 1 : 0,
             transform: buttonVisible ? 'translateY(0px)' : 'translateY(8px)',
             transition: 'opacity 700ms ease-in-out, transform 700ms ease-in-out, background 200ms ease-out',
-            pointerEvents: buttonVisible ? 'auto' : 'none',
           }}
         >
           {t('common.continue')}

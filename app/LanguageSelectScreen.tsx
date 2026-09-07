@@ -13,7 +13,6 @@ import type { LocaleCode } from './lib/i18n'
 // aynı görsel dil (VELIS wordmark, halka dekorasyonu, dairesel seçim
 // kartları, 300ms seçim gecikmesi).
 
-const SELECT_DELAY_MS = 300
 const CARD_SIZE = 132
 
 function LetterMark({ text }: { text: string }) {
@@ -101,7 +100,10 @@ export default function LanguageSelectScreen({ onChoose }: { onChoose: (locale: 
     if (selected) return
     setSelected(code)
     setLocale(code)
-    setTimeout(() => onChoose(code), SELECT_DELAY_MS)
+    // onChoose HEMEN - eskiden araya SELECT_DELAY_MS'lik bir setTimeout
+    // giriyordu; o zamanlayıcı iPad WKWebView'de kaybolursa ekran tam-ekran
+    // takılı kalıp sonraki adıma geçmiyordu (App Review 2.1a deseni).
+    onChoose(code)
   }
 
   return (

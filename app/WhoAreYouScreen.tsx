@@ -11,7 +11,6 @@ import { useLocale } from './contexts/LocaleContext'
 // saveUserType, app/page.tsx HomeInner). Seçim yapılınca ~300ms bekleyip
 // otomatik ilerliyor - Continue butonu ya da onay yok (spec gereği).
 
-const SELECT_DELAY_MS = 300
 const CARD_SIZE = 132
 
 // İkon çizimlerinin görsel sınırlayıcı kutusu 48x48 viewBox'ın tam ortasında
@@ -124,7 +123,10 @@ export default function WhoAreYouScreen({ onChoose }: { onChoose: (type: UserTyp
   const handleTap = (type: UserType) => {
     if (selected) return
     setSelected(type)
-    setTimeout(() => onChoose(type), SELECT_DELAY_MS)
+    // onChoose HEMEN çağrılıyor - eskiden araya SELECT_DELAY_MS'lik bir
+    // setTimeout giriyordu ama o zamanlayıcı iPad WKWebView'de kaybolursa
+    // ekran tam-ekran takılı kalıp sonraki adıma hiç geçmiyordu.
+    onChoose(type)
   }
 
   return (

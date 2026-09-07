@@ -14,7 +14,6 @@ const SIDE_GAP = 20
 // opaklıkta yarım saniye asılı kalıyordu, "iş bitti ama gitmedi" hissi
 // veriyordu. Fade süresi + küçük bir tampon kadar.
 const FADE_OUT_MS = 200
-const SETTLE_MS = 240
 
 // Rehber SADECE turdaki İLK kez yavaşça beliriyor - sonraki her adımda
 // (ekran/step değişse bile) doğrudan tam görünür başlıyor, "sabit kalıyor"
@@ -32,10 +31,9 @@ let guideEverAppeared = false
 // target, e.g. Welcome); the default keeps it in a fixed, safe bottom zone.
 // The spotlight layer is pointer-events:none - the real, live element
 // underneath stays fully interactive through the dim. Once the message is
-// fully acknowledged (last line tapped), the WHOLE layer - guide, card and
-// dim together - fades out fast (FADE_OUT_MS) and the parent's onDialogueDone
-// fires right after (SETTLE_MS), unmounting it. No lingering half-opacity
-// figure: when the guide is done talking, it's gone.
+// fully acknowledged (last line tapped), onDialogueDone fires IMMEDIATELY
+// (the parent unmounts it) while the layer fades out (FADE_OUT_MS). No
+// lingering half-opacity figure: when the guide is done talking, it's gone.
 export default function GuideOverlay({
   targetRect,
   lines,
@@ -70,11 +68,15 @@ export default function GuideOverlay({
   // Metin yazılırken kafa hafifçe parlaklaşıyor, bitince normale dönüyor.
   const [speaking, setSpeaking] = useState(false)
   // Mesaj tamamen bitip kabul edilince (son satıra dokununca) - kart/loş
-  // katman kayboluyor, rehber %70'e iniyor, sonra gerçek onDialogueDone çağrılıyor.
+  // katman kayboluyor VE onDialogueDone HEMEN çağrılıyor. Eskiden araya bir
+  // setTimeout(SETTLE_MS) giriyordu ama o zamanlayıcı iPad WKWebView'de
+  // kaybolursa çağrı hiç gelmiyor, çağıran ekran (ör. WelcomeScreen) görünmez
+  // bir tam-ekran katman olarak takılı kalıyordu (App Review 2.1a). Settle
+  // fade'i `settled` state'iyle yine oynuyor, sadece callback'i bekletmiyor.
   const [settled, setSettled] = useState(false)
   const handleMessageDone = () => {
     setSettled(true)
-    setTimeout(() => onDialogueDone?.(), SETTLE_MS)
+    onDialogueDone?.()
   }
 
   return (
