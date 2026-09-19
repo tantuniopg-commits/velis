@@ -10,7 +10,13 @@ import { userRepository } from '../repositories'
 import { setAppState } from './AppStateManager'
 import { clearWelcomeSeen, clearUserType, clearLanguageSelected } from '../lib/onboarding'
 import { clearGuideCompleted } from '../lib/guide'
-import { updateProfileRequest, changePasswordRequest, deleteAccountRequest } from '../lib/authApi'
+import {
+  updateProfileRequest,
+  changePasswordRequest,
+  deleteAccountRequest,
+  uploadAvatarRequest,
+  deleteAvatarRequest,
+} from '../lib/authApi'
 
 export * from '../lib/auth'
 
@@ -116,6 +122,7 @@ export function createAccount(input: {
   email: string
   id?: string
   isAdmin?: boolean
+  avatarVersion?: number
 }): VelisUser {
   const user: VelisUser = {
     firstName: input.firstName.trim(),
@@ -123,6 +130,7 @@ export function createAccount(input: {
     email: input.email.trim(),
     id: input.id,
     isAdmin: input.isAdmin || undefined,
+    avatarVersion: input.avatarVersion || undefined,
   }
   saveUser(user)
   setAppState('REGISTERED')
@@ -147,6 +155,37 @@ export async function updateUserName(user: VelisUser, firstName: string, lastNam
   }
   saveUser(next)
   return next
+}
+
+// Profil fotoğrafı sunucuda (MongoDB) saklanıyor - başarısız olursa (ağ/sunucu
+// hatası) yerel sürüm de değişmiyor, isim düzenlemedeki aynı ilke: ekran
+// "kaydedildi" gösterip DB'de eski kalmasın. Token yoksa (misafir) yüklenecek
+// bir hesap yok, null dönüyor. Fotoğrafın kendisi cihazda tutulmuyor, sadece
+// sürüm numarası (bkz. VelisUser.avatarVersion).
+export async function updateUserAvatar(user: VelisUser, imageDataUrl: string): Promise<VelisUser | null> {
+  const token = getStoredToken()
+  if (!token) return null
+  try {
+    const res = await uploadAvatarRequest(token, imageDataUrl)
+    const next: VelisUser = { ...user, avatarVersion: res.user.avatarVersion || undefined }
+    saveUser(next)
+    return next
+  } catch {
+    return null
+  }
+}
+
+export async function removeUserAvatar(user: VelisUser): Promise<VelisUser | null> {
+  const token = getStoredToken()
+  if (!token) return null
+  try {
+    await deleteAvatarRequest(token)
+    const next: VelisUser = { ...user, avatarVersion: undefined }
+    saveUser(next)
+    return next
+  } catch {
+    return null
+  }
 }
 
 // Gerçek şifre değişimi - hesap oluşturma formuyla BİREBİR aynı kural seti

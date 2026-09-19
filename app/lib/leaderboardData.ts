@@ -9,4 +9,7 @@ export type LBUser = {
   totalXP: number
   quote: string
   isYou?: boolean
+  // Profil fotoğrafının URL'si (bkz. lib/authApi.ts avatarUrl) - yoksa
+  // Avatar baş harflere düşüyor.
+  avatarUrl?: string
 }

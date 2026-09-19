@@ -18,7 +18,15 @@ export function apiBase() {
   return `${window.location.protocol}//${window.location.hostname}:${AUTH_API_PORT}`
 }
 
-export type AuthApiUser = { id: string; name: string; email: string; phone?: string; stats?: VelisStats; isAdmin?: boolean }
+export type AuthApiUser = {
+  id: string
+  name: string
+  email: string
+  phone?: string
+  stats?: VelisStats
+  isAdmin?: boolean
+  avatarVersion?: number
+}
 export type AuthApiResult = { token: string; user: AuthApiUser }
 export type AuthApiUserResult = { user: AuthApiUser }
 
@@ -117,6 +125,27 @@ export function updatePreferencesRequest(token: string, prefs: { notificationPre
   return request<{ ok: true }>('PATCH', '/api/auth/preferences', prefs, token)
 }
 
+// Profil fotoğrafı - bkz. app/profile/settings/account/page.tsx. `image`
+// 320x320 JPEG data URL'i (lib/avatarImage.ts); sunucu boyutu/imzayı yeniden
+// doğruluyor. PATCH (PUT değil): sunucunun CORS izin listesinde PUT yok.
+export function uploadAvatarRequest(token: string, image: string) {
+  return request<AuthApiUserResult>('PATCH', '/api/auth/avatar', { image }, token)
+}
+
+export function deleteAvatarRequest(token: string) {
+  return request<AuthApiUserResult>('DELETE', '/api/auth/avatar', undefined, token)
+}
+
+// Bir kullanıcının fotoğrafının herkese açık URL'si (<img src>) - sürüm yoksa/0
+// ise fotoğraf yok demek, çağıran baş harflere düşüyor. ?v= sürümü değişince URL
+// değişiyor, tarayıcı eskisini önbellekten sunmuyor.
+export function avatarUrl(userId: string | undefined, version: number | undefined): string | undefined {
+  if (!userId || !version) return undefined
+  const base = apiBase()
+  if (!base) return undefined
+  return `${base}/api/auth/avatar/${encodeURIComponent(userId)}?v=${version}`
+}
+
 export function changePasswordRequest(token: string, currentPassword: string, newPassword: string, locale: string) {
   return request<{ ok: true }>('PATCH', '/api/auth/password', { currentPassword, newPassword, locale }, token)
 }
@@ -141,7 +170,7 @@ export function resetPasswordRequest(email: string, code: string, newPassword: s
   return request<{ ok: true }>('POST', '/api/auth/reset-password', { email, code, newPassword })
 }
 
-export type AuthApiLeaderboardUser = { id: string; name: string; stats?: VelisStats }
+export type AuthApiLeaderboardUser = { id: string; name: string; stats?: VelisStats; avatarVersion?: number }
 export type AuthApiLeaderboardResult = { users: AuthApiLeaderboardUser[] }
 
 // Leaderboard - SADECE gerçekten kayıt olmuş kullanıcılardan oluşuyor (bkz.

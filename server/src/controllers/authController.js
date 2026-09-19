@@ -70,6 +70,7 @@ function toPublicUser(user) {
     phone: user.phone,
     stats: user.stats,
     isAdmin: isAdminEmail(user.email),
+    avatarVersion: user.avatarVersion || 0,
   }
 }
 
@@ -333,6 +334,73 @@ async function updatePassword(req, res) {
   })
 }
 
+// --- Profil fotoğrafı ---------------------------------------------------
+// İstemci fotoğrafı 320x320 JPEG'e kırpıp sıkıştırıyor (bkz. app/lib/
+// avatarImage.ts, ~25KB). Sunucu istemciye güvenmiyor: sadece base64 JPEG
+// data URL'i, en fazla 100KB ve gerçek bir JPEG imzasıyla (FFD8FF...FFD9)
+// kabul ediyor. Bayt olarak saklanıp image/jpeg + nosniff ile servis edildiği
+// için içine HTML/script gömülse bile tarayıcıda çalışmaz.
+const MAX_AVATAR_BYTES = 100 * 1024
+const AVATAR_DATA_URL_PREFIX = 'data:image/jpeg;base64,'
+const OBJECT_ID_RE = /^[a-f0-9]{24}$/i
+
+function decodeAvatar(input) {
+  if (typeof input !== 'string' || !input.startsWith(AVATAR_DATA_URL_PREFIX)) return null
+  const b64 = input.slice(AVATAR_DATA_URL_PREFIX.length)
+  // Çözmeden önce dev gövdeyi at (base64 ~%33 şişirir).
+  if (b64.length === 0 || b64.length > Math.ceil((MAX_AVATAR_BYTES * 4) / 3) + 4) return null
+  if (!/^[A-Za-z0-9+/]+={0,2}$/.test(b64)) return null
+  const buf = Buffer.from(b64, 'base64')
+  if (buf.length < 4 || buf.length > MAX_AVATAR_BYTES) return null
+  if (buf[0] !== 0xff || buf[1] !== 0xd8 || buf[2] !== 0xff) return null
+  if (buf[buf.length - 2] !== 0xff || buf[buf.length - 1] !== 0xd9) return null
+  return buf
+}
+
+// Hesap Ayarları > Profil fotoğrafı (bkz. app/profile/settings/account/page.tsx).
+async function updateAvatar(req, res) {
+  const data = decodeAvatar(req.body?.image)
+  if (!data) return res.status(400).json({ error: 'A JPEG image up to 100 KB is required' })
+  const user = await User.findByIdAndUpdate(
+    req.userId,
+    { $set: { avatarData: data, avatarVersion: Date.now() } },
+    { new: true }
+  )
+  if (!user) return res.status(404).json({ error: 'User not found' })
+  res.json({ user: toPublicUser(user) })
+}
+
+async function removeAvatar(req, res) {
+  const user = await User.findByIdAndUpdate(
+    req.userId,
+    { $set: { avatarVersion: 0 }, $unset: { avatarData: 1 } },
+    { new: true }
+  )
+  if (!user) return res.status(404).json({ error: 'User not found' })
+  res.json({ user: toPublicUser(user) })
+}
+
+// Herkese açık: <img src> Authorization başlığı gönderemiyor ve leaderboard'da
+// başkalarının fotoğraflarını da gösteriyoruz. Leaderboard zaten herkese açık
+// (kısaltılmış adla) - bu da onunla aynı görünürlükte, sadece kullanıcı
+// fotoğraf yüklediyse var.
+async function getAvatar(req, res) {
+  const id = String(req.params.id || '')
+  if (!OBJECT_ID_RE.test(id)) return res.status(404).end()
+  const user = await User.findById(id).select('+avatarData avatarVersion')
+  if (!user || !user.avatarVersion || !user.avatarData) return res.status(404).end()
+  res.set({
+    'Content-Type': 'image/jpeg',
+    // helmet varsayılanı `same-origin` - Capacitor WebView'in origin'i
+    // (capacitor://localhost) API'den farklı, bu başlık olmadan <img> engellenir.
+    'Cross-Origin-Resource-Policy': 'cross-origin',
+    // URL'deki ?v= sürümü değişince URL de değişiyor - sürümlü istek sonsuza
+    // kadar önbelleğe alınabilir, sürümsüz olan her seferinde doğrulanır.
+    'Cache-Control': req.query.v ? 'public, max-age=31536000, immutable' : 'no-cache',
+  })
+  res.send(user.avatarData)
+}
+
 // Hesap Ayarları > Hesabı Sil - kullanıcıyı DB'den GERÇEKTEN siliyor (bkz.
 // leaderboard() - silinen bir hesap User.find({}) sorgusunda artık hiç
 // dönmüyor, leaderboard'da otomatik olarak görünmez oluyor).
@@ -377,9 +445,16 @@ function displayNameForLeaderboard(full) {
 // oluşuyor (bkz. app/leaderboard/page.tsx). Şifre/email/TAM ad dönmüyor -
 // sadece kısaltılmış görünen ad + sıralama için gereken istatistikler.
 async function leaderboard(req, res) {
-  const users = await User.find({}, 'name stats').lean()
+  const users = await User.find({}, 'name stats avatarVersion').lean()
   res.json({
-    users: users.map((u) => ({ id: u._id, name: displayNameForLeaderboard(u.name), stats: u.stats })),
+    users: users.map((u) => ({
+      id: u._id,
+      name: displayNameForLeaderboard(u.name),
+      stats: u.stats,
+      // Fotoğrafın kendisi burada DEĞİL (100 kullanıcı = megabaytlarca JSON) -
+      // sadece sürüm; istemci varsa GET /api/auth/avatar/:id?v=... ile çekiyor.
+      avatarVersion: u.avatarVersion || 0,
+    })),
   })
 }
 
@@ -414,6 +489,9 @@ module.exports = {
   updateProfile,
   updatePreferences,
   updatePassword,
+  updateAvatar,
+  removeAvatar,
+  getAvatar,
   removeAccount,
   leaderboard,
   listUsers,

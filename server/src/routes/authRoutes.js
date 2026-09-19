@@ -9,6 +9,9 @@ const {
   updateProfile,
   updatePreferences,
   updatePassword,
+  updateAvatar,
+  removeAvatar,
+  getAvatar,
   removeAccount,
   leaderboard,
   listUsers,
@@ -28,6 +31,11 @@ router.patch('/stats', requireAuth, asyncHandler(updateStats))
 router.patch('/profile', requireAuth, asyncHandler(updateProfile))
 router.patch('/preferences', requireAuth, asyncHandler(updatePreferences))
 router.patch('/password', requireAuth, asyncHandler(updatePassword))
+router.patch('/avatar', requireAuth, asyncHandler(updateAvatar))
+router.delete('/avatar', requireAuth, asyncHandler(removeAvatar))
+// Herkese açık - <img src> Authorization başlığı gönderemez, leaderboard'daki
+// başkalarının fotoğrafları da buradan geliyor (bkz. getAvatar).
+router.get('/avatar/:id', asyncHandler(getAvatar))
 router.delete('/account', requireAuth, asyncHandler(removeAccount))
 router.post('/forgot-password', asyncHandler(forgotPassword))
 router.post('/verify-reset-code', asyncHandler(verifyResetCode))

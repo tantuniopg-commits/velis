@@ -14,6 +14,10 @@ export type VelisUser = {
   // register yanıtında true dönüyor. Üretimde Developer Panel'i açan kilit
   // (bkz. isDev || isAdmin). Admin listesinin kendisi client'a hiç inmiyor.
   isAdmin?: boolean
+  // Sunucudaki profil fotoğrafının sürümü (yok/0 = fotoğraf yok). Fotoğraf
+  // URL'sini kurmak ve tarayıcı önbelleğini kırmak için (bkz. lib/authApi.ts
+  // avatarUrl). Fotoğrafın kendisi cihazda saklanmıyor.
+  avatarVersion?: number
 }
 
 // Journey (gün/seri) ve XP (ödül) sistemleri KASITLI OLARAK birbirinden

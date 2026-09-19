@@ -33,6 +33,38 @@ export const cardStyle = {
   overflow: 'hidden',
 }
 
+// Metin girişi + kaydet düğmesi - Hesap ayarları ve Profil düzenleme ekranı
+// (bkz. app/ProfileEditSheet.tsx) aynı alanları kullanıyor, tek yerde duruyor.
+export function fieldInputStyle(focused: boolean, withRightSlot = false) {
+  return {
+    width: '100%',
+    boxSizing: 'border-box' as const,
+    padding: withRightSlot ? '13px 44px 13px 16px' : '13px 16px',
+    borderRadius: '14px',
+    border: focused ? '1px solid rgba(255, 178, 90, 0.55)' : '1px solid rgba(255, 255, 255, 0.12)',
+    boxShadow: focused ? '0 0 0 3px rgba(255, 178, 90, 0.1)' : 'none',
+    background: 'rgba(255, 255, 255, 0.03)',
+    color: '#F5F0EA',
+    fontFamily: SANS,
+    fontWeight: 400,
+    fontSize: '15px',
+    outline: 'none',
+    transition: 'border 200ms ease-out, box-shadow 200ms ease-out',
+  }
+}
+
+export const saveButtonStyle = {
+  padding: '12px 0',
+  borderRadius: '999px',
+  border: '1px solid rgba(255, 178, 90, 0.45)',
+  background: 'rgba(255, 178, 90, 0.06)',
+  color: '#E3C08C',
+  fontFamily: SANS,
+  fontWeight: 600,
+  fontSize: '14px',
+  cursor: 'pointer',
+}
+
 function ChevronLeftIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none">

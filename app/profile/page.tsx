@@ -3,12 +3,14 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ChangeEvent, KeyboardEvent, ReactNode, RefObject } from 'react'
 import VelisMark from '../VelisMark'
+import AvatarPhoto from '../AvatarPhoto'
+import ProfileEditSheet from '../ProfileEditSheet'
 import { getStoredStats, saveStats, getStoredToken, ZERO_STATS as ZERO_VELIS_STATS } from '../lib/auth'
 import type { VelisUser, VelisStats } from '../lib/auth'
 import { getStoredSettings } from '../lib/settings'
 import { getStoredUser, validateSignupForm, createAccount, saveToken, getPasswordRuleStatus, isAdminUser } from '../services/AuthService'
 import type { PasswordRuleId } from '../services/AuthService'
-import { registerRequest, loginRequest, AuthApiError, checkEmailAvailableRequest, updatePreferencesRequest } from '../lib/authApi'
+import { registerRequest, loginRequest, AuthApiError, checkEmailAvailableRequest, updatePreferencesRequest, avatarUrl } from '../lib/authApi'
 import { getTodayIndexMondayFirst } from '../services/TimeService'
 import { useAppNav } from '../contexts/AppNavContext'
 import { getAppState, setAppState } from '../services/AppStateManager'
@@ -522,6 +524,7 @@ export default function Profile() {
 
   const [, setDevTapCount] = useState(0)
   const [devPanelOpen, setDevPanelOpen] = useState(false)
+  const [editOpen, setEditOpen] = useState(false)
   const devTapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const handleLogoTap = () => {
@@ -737,7 +740,16 @@ export default function Profile() {
       // önceki hesabın yerel gün/XP'si olduğu gibi kalıyordu.
       saveStats(result.user.stats ?? ZERO_VELIS_STATS)
       const { firstName: fn, lastName: ln } = splitName(result.user.name)
-      finishAuth(createAccount({ firstName: fn, lastName: ln, email: result.user.email, id: result.user.id, isAdmin: result.user.isAdmin }))
+      finishAuth(
+        createAccount({
+          firstName: fn,
+          lastName: ln,
+          email: result.user.email,
+          id: result.user.id,
+          isAdmin: result.user.isAdmin,
+          avatarVersion: result.user.avatarVersion,
+        })
+      )
     } catch (e) {
       setAuthError(e instanceof AuthApiError ? e.message : t('profile.error.generic'))
     } finally {
@@ -1243,6 +1255,39 @@ export default function Profile() {
             overflow: 'hidden',
           }}
         >
+          {/* Profil düzenleme girişi - Ayarlar dişlisinin sol üstteki simetriği:
+              aynı boyut, çizgi kalınlığı, amber dokunuş efekti ve güvenli alan
+              hesabı. Fotoğraf + isim düzenleme ekranını açıyor (bkz.
+              ProfileEditSheet). */}
+          <button
+            className="profile-settings-btn"
+            onClick={() => setEditOpen(true)}
+            aria-label={t('profile.edit.open')}
+            style={{
+              position: 'fixed',
+              top: 'calc(env(safe-area-inset-top, 0px) + 22px)',
+              left: 'calc(env(safe-area-inset-left, 0px) + 20px)',
+              background: 'none',
+              border: 'none',
+              padding: '6px',
+              display: 'flex',
+              cursor: 'pointer',
+              color: 'rgba(255, 255, 255, 0.7)',
+              transition: 'color 200ms ease-in-out',
+              zIndex: 5,
+            }}
+          >
+            <svg width="21" height="21" viewBox="0 0 24 24" fill="none">
+              <path
+                d="M4 20l1-4.2L16.6 4.2a1.8 1.8 0 0 1 2.55 0l.65.65a1.8 1.8 0 0 1 0 2.55L8.2 19 4 20Z"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinejoin="round"
+              />
+              <path d="M14.6 6.2l3.2 3.2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+          </button>
+
           {/* Ayarlar girişi - Apple'ın kendi uygulamalarındaki gibi sağ üst
               köşede, gezinme eylemi olarak. Avatar/isim/istatistikler asıl
               odak kalıyor - bu yüzden büyük bir daire arka planı yok, sadece
@@ -1293,12 +1338,18 @@ export default function Profile() {
               justifyContent: 'center',
               background: 'rgba(255, 178, 90, 0.05)',
               cursor: isDev || isAdminUser() ? 'pointer' : 'default',
+              overflow: 'hidden',
             }}
           >
-            <span style={{ fontFamily: FONT_SANS, fontWeight: 600, fontSize: '22px', color: '#F3CE8E' }}>
-              {(user.firstName[0] ?? '').toUpperCase()}
-              {(user.lastName[0] ?? '').toUpperCase()}
-            </span>
+            <AvatarPhoto
+              src={avatarUrl(user.id, user.avatarVersion)}
+              fallback={
+                <span style={{ fontFamily: FONT_SANS, fontWeight: 600, fontSize: '22px', color: '#F3CE8E' }}>
+                  {(user.firstName[0] ?? '').toUpperCase()}
+                  {(user.lastName[0] ?? '').toUpperCase()}
+                </span>
+              }
+            />
           </div>
           <h1 style={{ marginTop: '18px', fontFamily: FONT_SANS, fontWeight: 600, fontSize: '26px', color: '#F5F0EA' }}>
             {t('profile.hello', { name: `${user.firstName} ${user.lastName}` })}
@@ -1499,6 +1550,8 @@ export default function Profile() {
           </div>
         </div>
       )}
+
+      {editOpen && user && <ProfileEditSheet user={user} onClose={() => setEditOpen(false)} onUserChange={setUser} />}
 
       <DevPanel visible={devPanelOpen} onClose={() => setDevPanelOpen(false)} />
     </div>
