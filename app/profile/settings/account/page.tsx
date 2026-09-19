@@ -174,6 +174,10 @@ export default function AccountSettings() {
     setNameError(null)
     const next = await updateUserName(user, firstName, lastName)
     setNameSaving(false)
+    if (next === 'taken') {
+      setNameError(t('profile.edit.nameTaken'))
+      return
+    }
     if (!next) {
       setNameError(t('settings.account.saveFailed'))
       return

@@ -722,6 +722,8 @@ export default function Profile() {
         })
       )
     } catch (e) {
+      // Sunucu mesajı İngilizce - "isim alınmış" için uygulama diline çevrilmiş metin.
+      if (e instanceof AuthApiError && e.status === 409 && e.message.startsWith('Name')) return t('profile.edit.nameTaken')
       return e instanceof AuthApiError ? e.message : t('profile.error.generic')
     }
   }

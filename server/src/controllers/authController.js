@@ -12,6 +12,22 @@ const STATS_FIELDS = ['journeyDay', 'currentStreak', 'journeyTimestamp', 'totalX
 function str(v) {
   return typeof v === 'string' ? v.trim() : ''
 }
+// Görünen ad BENZERSİZ: aynı ada sahip ikinci bir hesap açılamıyor / ad o
+// haline getirilemiyor. Karşılaştırma büyük-küçük harf duyarsız (Türkçe
+// kurallarıyla: I/ı, İ/i) ve fazla boşluklar tek boşluğa indirilmiş halde -
+// "ada  LOVELACE" ile "Ada Lovelace" aynı ad sayılıyor, yoksa liste/sıralamada
+// birinin adını taklit etmek çok kolay olurdu. Veritabanı seviyesinde unique
+// index YOK (üretimde zaten çift adlar varsa index kurulumu kırılırdı) - bu
+// kontrol sadece YENİ almaları engelliyor; iki isteğin aynı anda gelmesi gibi
+// nadir bir yarış durumunda ikisi de geçebilir.
+function normalizeName(v) {
+  return str(v).replace(/\s+/g, ' ').slice(0, MAX_NAME)
+}
+async function isNameTaken(name, exceptUserId) {
+  const filter = { name }
+  if (exceptUserId) filter._id = { $ne: exceptUserId }
+  return !!(await User.exists(filter).collation({ locale: 'tr', strength: 2 }))
+}
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 function isValidEmail(email) {
   return typeof email === 'string' && email.length <= 254 && EMAIL_RE.test(email)
@@ -109,7 +125,7 @@ function clampSeedStats(stats) {
 
 async function register(req, res) {
   const body = req.body || {}
-  const name = str(body.name).slice(0, MAX_NAME)
+  const name = normalizeName(body.name)
   const email = str(body.email).toLowerCase()
   const password = typeof body.password === 'string' ? body.password : ''
   const phone = str(body.phone)
@@ -151,6 +167,8 @@ async function register(req, res) {
     const existingPhone = await User.findOne({ phone })
     if (existingPhone) return res.status(409).json({ error: 'Phone number already in use' })
   }
+
+  if (await isNameTaken(name)) return res.status(409).json({ error: 'Name already in use' })
 
   const resolvedLocale = body.locale === 'tr' ? 'tr' : 'en'
   const passwordHash = await User.hashPassword(password)
@@ -273,8 +291,10 @@ async function updateStats(req, res) {
 
 // Hesap Ayarları > İsmi Düzenle (bkz. app/profile/settings/account/page.tsx).
 async function updateProfile(req, res) {
-  const name = str(req.body?.name).slice(0, MAX_NAME)
+  const name = normalizeName(req.body?.name)
   if (!name) return res.status(400).json({ error: 'name is required' })
+  // Kendi adının büyük/küçük harfini değiştirmek serbest (kendisi hariç tutuluyor).
+  if (await isNameTaken(name, req.userId)) return res.status(409).json({ error: 'Name already in use' })
   const user = await User.findByIdAndUpdate(req.userId, { $set: { name } }, { new: true })
   if (!user) return res.status(404).json({ error: 'User not found' })
   res.json({ user: toPublicUser(user) })

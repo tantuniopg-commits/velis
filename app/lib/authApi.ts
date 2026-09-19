@@ -30,7 +30,15 @@ export type AuthApiUser = {
 export type AuthApiResult = { token: string; user: AuthApiUser }
 export type AuthApiUserResult = { user: AuthApiUser }
 
-export class AuthApiError extends Error {}
+export class AuthApiError extends Error {
+  // HTTP durum kodu - çağıran, genel hata yerine belirli bir duruma (ör. 409
+  // "isim zaten alınmış") özel mesaj gösterebilsin diye.
+  status?: number
+  constructor(message: string, status?: number) {
+    super(message)
+    this.status = status
+  }
+}
 
 // Backend ücretsiz hosting'de (Render free) 15 dk kullanılmazsa uyuyor;
 // uyandırma isteği ~50 sn sürebiliyor. O yüzden timeout uzun (45 sn) ve
@@ -62,7 +70,7 @@ async function request<T>(method: string, path: string, body?: unknown, token?: 
   }
 
   const data = await res.json().catch(() => ({}))
-  if (!res.ok) throw new AuthApiError(data.error || 'Something went wrong.')
+  if (!res.ok) throw new AuthApiError(data.error || 'Something went wrong.', res.status)
   return data as T
 }
 

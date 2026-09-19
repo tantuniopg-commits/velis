@@ -16,6 +16,7 @@ import {
   deleteAccountRequest,
   uploadAvatarRequest,
   deleteAvatarRequest,
+  AuthApiError,
 } from '../lib/authApi'
 
 export * from '../lib/auth'
@@ -142,14 +143,18 @@ export function createAccount(input: {
 // ekran "kaydedildi" gösterip DB'de sessizce eski kalır (bkz. journey stats
 // senkron sorunundaki tutarsızlık, burada aynı hatayı tekrarlamıyoruz).
 // Misafir modda (token yok) sadece yerel - hiç sunucu hesabı yok zaten.
-export async function updateUserName(user: VelisUser, firstName: string, lastName: string): Promise<VelisUser | null> {
+// İsim benzersiz (bkz. server authController isNameTaken): başkası aynı adı
+// kullanıyorsa sunucu 409 dönüyor ve burada 'taken' - çağıran genel "kaydedilemedi"
+// yerine "bu isim alınmış" gösterebilsin. Yine yerel de değiştirilmiyor.
+export async function updateUserName(user: VelisUser, firstName: string, lastName: string): Promise<VelisUser | null | 'taken'> {
   if (!firstName.trim() || !lastName.trim()) return null
   const next: VelisUser = { ...user, firstName: firstName.trim(), lastName: lastName.trim() }
   const token = getStoredToken()
   if (token) {
     try {
       await updateProfileRequest(token, `${next.firstName} ${next.lastName}`.trim())
-    } catch {
+    } catch (e) {
+      if (e instanceof AuthApiError && e.status === 409) return 'taken'
       return null
     }
   }

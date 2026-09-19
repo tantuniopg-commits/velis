@@ -59,6 +59,10 @@ export default function ProfileEditSheet({
     setError(null)
     const next = await updateUserName(user, firstName, lastName)
     setSaving(false)
+    if (next === 'taken') {
+      setError(t('profile.edit.nameTaken'))
+      return
+    }
     if (!next) {
       setError(t('settings.account.saveFailed'))
       return
