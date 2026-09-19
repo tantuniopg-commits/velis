@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken')
 const User = require('../models/User')
+const Report = require('../models/Report')
 const { sendPasswordChangedEmail, sendWelcomeEmail } = require('../lib/mailer')
 const { isAdminEmail } = require('../lib/admins')
 
@@ -87,6 +88,7 @@ function toPublicUser(user) {
     stats: user.stats,
     isAdmin: isAdminEmail(user.email),
     avatarVersion: user.avatarVersion || 0,
+    blockedUsers: (user.blockedUsers || []).map((id) => String(id)),
   }
 }
 
@@ -383,20 +385,23 @@ async function updateAvatar(req, res) {
   if (!data) return res.status(400).json({ error: 'A JPEG image up to 100 KB is required' })
   const user = await User.findByIdAndUpdate(
     req.userId,
-    { $set: { avatarData: data, avatarVersion: Date.now() } },
+    { $set: { avatarData: data, avatarVersion: Date.now(), avatarHidden: false } },
     { new: true }
   )
   if (!user) return res.status(404).json({ error: 'User not found' })
+  // Bildirimler ESKİ fotoğraf içindi - yeni fotoğraf temiz başlıyor.
+  await Report.deleteMany({ reported: req.userId })
   res.json({ user: toPublicUser(user) })
 }
 
 async function removeAvatar(req, res) {
   const user = await User.findByIdAndUpdate(
     req.userId,
-    { $set: { avatarVersion: 0 }, $unset: { avatarData: 1 } },
+    { $set: { avatarVersion: 0, avatarHidden: false }, $unset: { avatarData: 1 } },
     { new: true }
   )
   if (!user) return res.status(404).json({ error: 'User not found' })
+  await Report.deleteMany({ reported: req.userId })
   res.json({ user: toPublicUser(user) })
 }
 
@@ -407,8 +412,9 @@ async function removeAvatar(req, res) {
 async function getAvatar(req, res) {
   const id = String(req.params.id || '')
   if (!OBJECT_ID_RE.test(id)) return res.status(404).end()
-  const user = await User.findById(id).select('+avatarData avatarVersion')
-  if (!user || !user.avatarVersion || !user.avatarData) return res.status(404).end()
+  const user = await User.findById(id).select('+avatarData avatarVersion avatarHidden')
+  // avatarHidden: birkaç kişiden bildirim alan fotoğraf servis edilmiyor.
+  if (!user || !user.avatarVersion || !user.avatarData || user.avatarHidden) return res.status(404).end()
   res.set({
     'Content-Type': 'image/jpeg',
     // helmet varsayılanı `same-origin` - Capacitor WebView'in origin'i
@@ -427,6 +433,10 @@ async function getAvatar(req, res) {
 async function removeAccount(req, res) {
   const user = await User.findByIdAndDelete(req.userId)
   if (!user) return res.status(404).json({ error: 'User not found' })
+  // Bu hesapla ilgili moderasyon kayıtları da gidiyor: hakkındaki/yaptığı
+  // bildirimler ve başkalarının engel listelerindeki kimliği.
+  await Report.deleteMany({ $or: [{ reporter: req.userId }, { reported: req.userId }] })
+  await User.updateMany({ blockedUsers: req.userId }, { $pull: { blockedUsers: req.userId } })
   res.json({ ok: true })
 }
 
@@ -465,7 +475,7 @@ function displayNameForLeaderboard(full) {
 // oluşuyor (bkz. app/leaderboard/page.tsx). Şifre/email/TAM ad dönmüyor -
 // sadece kısaltılmış görünen ad + sıralama için gereken istatistikler.
 async function leaderboard(req, res) {
-  const users = await User.find({}, 'name stats avatarVersion').lean()
+  const users = await User.find({}, 'name stats avatarVersion avatarHidden').lean()
   res.json({
     users: users.map((u) => ({
       id: u._id,
@@ -473,7 +483,8 @@ async function leaderboard(req, res) {
       stats: u.stats,
       // Fotoğrafın kendisi burada DEĞİL (100 kullanıcı = megabaytlarca JSON) -
       // sadece sürüm; istemci varsa GET /api/auth/avatar/:id?v=... ile çekiyor.
-      avatarVersion: u.avatarVersion || 0,
+      // Gizlenen (bildirim alan) fotoğraf listede "yok" sayılıyor.
+      avatarVersion: u.avatarHidden ? 0 : u.avatarVersion || 0,
     })),
   })
 }
@@ -502,6 +513,9 @@ async function listUsers(req, res) {
 }
 
 module.exports = {
+  // moderationController da kullanıyor
+  toPublicUser,
+  displayNameForLeaderboard,
   register,
   login,
   me,

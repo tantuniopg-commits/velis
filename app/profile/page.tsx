@@ -750,6 +750,7 @@ export default function Profile() {
           id: result.user.id,
           isAdmin: result.user.isAdmin,
           avatarVersion: result.user.avatarVersion,
+          blockedUsers: result.user.blockedUsers,
         })
       )
     } catch (e) {

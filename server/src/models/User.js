@@ -41,6 +41,14 @@ const userSchema = new mongoose.Schema(
     // 0 = fotoğraf yok. Her değişimde Date.now() - istemci bunu URL'ye ?v=
     // olarak ekleyip tarayıcı önbelleğini kırıyor.
     avatarVersion: { type: Number, default: 0 },
+    // Aynı fotoğraf birkaç farklı kişiden bildirim alınca otomatik gizleniyor
+    // (bkz. moderationController) - bayrak açıkken fotoğraf kimseye servis
+    // edilmiyor (sahibine de). Yeni fotoğraf yüklenince/silinince sıfırlanıyor.
+    avatarHidden: { type: Boolean, default: false },
+    // Engellediği kullanıcılar (bkz. moderationController) - istemci liderlik
+    // tablosunda bu kimlikleri gizliyor. Sunucuda tutuluyor ki cihazlar arası
+    // ve yeniden yüklemede kaybolmasın.
+    blockedUsers: { type: [mongoose.Schema.Types.ObjectId], default: [] },
     // Bildirim tercihleri + dil - sunucudaki soğuma hatırlatma job'ı (bkz.
     // jobs/cooldownReminder.js) hangi hesaba mail atacağını ve hangi dilde
     // yazacağını buradan öğreniyor (bkz. lib/authApi.ts updatePreferencesRequest,

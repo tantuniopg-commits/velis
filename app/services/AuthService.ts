@@ -16,6 +16,9 @@ import {
   deleteAccountRequest,
   uploadAvatarRequest,
   deleteAvatarRequest,
+  reportUserRequest,
+  blockUserRequest,
+  unblockUserRequest,
   AuthApiError,
 } from '../lib/authApi'
 
@@ -124,6 +127,7 @@ export function createAccount(input: {
   id?: string
   isAdmin?: boolean
   avatarVersion?: number
+  blockedUsers?: string[]
 }): VelisUser {
   const user: VelisUser = {
     firstName: input.firstName.trim(),
@@ -132,6 +136,7 @@ export function createAccount(input: {
     id: input.id,
     isAdmin: input.isAdmin || undefined,
     avatarVersion: input.avatarVersion || undefined,
+    blockedUsers: input.blockedUsers?.length ? input.blockedUsers : undefined,
   }
   saveUser(user)
   setAppState('REGISTERED')
@@ -186,6 +191,46 @@ export async function removeUserAvatar(user: VelisUser): Promise<VelisUser | nul
   try {
     await deleteAvatarRequest(token)
     const next: VelisUser = { ...user, avatarVersion: undefined }
+    saveUser(next)
+    return next
+  } catch {
+    return null
+  }
+}
+
+// Moderasyon (App Store 1.2). Hepsi sunucu gerektiriyor: token yoksa (misafir)
+// yapılacak bir şey yok, başarısızlık sessizce false/null - çağıran kullanıcıya
+// "tekrar dene" gösteriyor ve yerel durum sunucuyla tutarlı kalıyor.
+export async function reportUser(userId: string): Promise<boolean> {
+  const token = getStoredToken()
+  if (!token) return false
+  try {
+    await reportUserRequest(token, userId)
+    return true
+  } catch {
+    return false
+  }
+}
+
+export async function blockUser(user: VelisUser, targetId: string): Promise<VelisUser | null> {
+  const token = getStoredToken()
+  if (!token) return null
+  try {
+    const res = await blockUserRequest(token, targetId)
+    const next: VelisUser = { ...user, blockedUsers: res.blockedUsers }
+    saveUser(next)
+    return next
+  } catch {
+    return null
+  }
+}
+
+export async function unblockUser(user: VelisUser, targetId: string): Promise<VelisUser | null> {
+  const token = getStoredToken()
+  if (!token) return null
+  try {
+    const res = await unblockUserRequest(token, targetId)
+    const next: VelisUser = { ...user, blockedUsers: res.blockedUsers }
     saveUser(next)
     return next
   } catch {

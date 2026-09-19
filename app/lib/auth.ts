@@ -18,6 +18,10 @@ export type VelisUser = {
   // URL'sini kurmak ve tarayıcı önbelleğini kırmak için (bkz. lib/authApi.ts
   // avatarUrl). Fotoğrafın kendisi cihazda saklanmıyor.
   avatarVersion?: number
+  // Engellediği kullanıcıların kimlikleri - liderlik tablosunda gizleniyor
+  // (bkz. app/leaderboard/page.tsx). Sunucudaki liste login'de gelir ve
+  // engelle/kaldır işlemlerinde güncellenir.
+  blockedUsers?: string[]
 }
 
 // Journey (gün/seri) ve XP (ödül) sistemleri KASITLI OLARAK birbirinden

@@ -26,6 +26,8 @@ export type AuthApiUser = {
   stats?: VelisStats
   isAdmin?: boolean
   avatarVersion?: number
+  // Engellediği kullanıcıların kimlikleri (bkz. moderationController).
+  blockedUsers?: string[]
 }
 export type AuthApiResult = { token: string; user: AuthApiUser }
 export type AuthApiUserResult = { user: AuthApiUser }
@@ -152,6 +154,26 @@ export function avatarUrl(userId: string | undefined, version: number | undefine
   const base = apiBase()
   if (!base) return undefined
   return `${base}/api/auth/avatar/${encodeURIComponent(userId)}?v=${version}`
+}
+
+// Moderasyon (App Store 1.2) - bkz. server/src/controllers/moderationController.js.
+// Bildirim anında destek e-postasına düşüyor; aynı fotoğraf 3 farklı kişiden
+// bildirim alırsa otomatik gizleniyor. Engel sunucuda tutuluyor (cihazlar arası).
+export function reportUserRequest(token: string, userId: string, reason?: string) {
+  return request<{ ok: true }>('POST', '/api/auth/report', { userId, reason }, token)
+}
+
+export function blockUserRequest(token: string, userId: string) {
+  return request<{ blockedUsers: string[] }>('POST', `/api/auth/block/${encodeURIComponent(userId)}`, undefined, token)
+}
+
+export function unblockUserRequest(token: string, userId: string) {
+  return request<{ blockedUsers: string[] }>('DELETE', `/api/auth/block/${encodeURIComponent(userId)}`, undefined, token)
+}
+
+export type AuthApiBlockedUser = { id: string; name: string }
+export function getBlocksRequest(token: string) {
+  return request<{ users: AuthApiBlockedUser[] }>('GET', '/api/auth/blocks', undefined, token)
 }
 
 export function changePasswordRequest(token: string, currentPassword: string, newPassword: string, locale: string) {

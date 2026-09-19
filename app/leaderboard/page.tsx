@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { getStoredUser } from '../services/AuthService'
-import { getStoredStats } from '../lib/auth'
+import { getStoredUser, reportUser, blockUser } from '../services/AuthService'
+import { getStoredStats, getStoredToken } from '../lib/auth'
+import ModerationSheet from '../ModerationSheet'
 import { getLeaderboardRequest, avatarUrl } from '../lib/authApi'
 import AvatarPhoto from '../AvatarPhoto'
 import { buildRanking, getRankOf, formatMetricValue } from '../services/LeaderboardService'
@@ -308,9 +309,16 @@ export default function Leaderboard() {
 
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [overlayVisible, setOverlayVisible] = useState(false)
+  // Bildirme/engelleme (App Store 1.2) sadece giriş yapmış kullanıcıya - sunucu
+  // token istiyor. Menü ModerationSheet'te.
+  const [canModerate, setCanModerate] = useState(false)
+  const [moderationOpen, setModerationOpen] = useState(false)
 
   useEffect(() => {
     const storedUser = getStoredUser()
+    // Engellediği kişiler listede/podyumda hiç görünmüyor.
+    const blocked = storedUser?.blockedUsers ?? []
+    setCanModerate(!!storedUser && !!getStoredToken())
 
     let cancelled = false
     getLeaderboardRequest()
@@ -319,7 +327,7 @@ export default function Leaderboard() {
         const users: LBUser[] = res.users
           // Kendi satırımız aşağıda "you" olarak ayrı gösteriliyor - listede
           // iki kere görünmesin diye backend id'siyle eşleşeni çıkarıyoruz.
-          .filter((u) => u.id !== storedUser?.id)
+          .filter((u) => u.id !== storedUser?.id && !blocked.includes(u.id))
           .map((u) => ({
             id: u.id,
             firstName: u.name,
@@ -374,8 +382,24 @@ export default function Leaderboard() {
     requestAnimationFrame(() => setOverlayVisible(true))
   }
   const closeProfile = () => {
+    setModerationOpen(false)
     setOverlayVisible(false)
     setTimeout(() => setSelectedId(null), 220)
+  }
+
+  // Engelle: kişi listeden çıkıyor ve ekran HEMEN kapanıyor - kapanış senkron,
+  // zamanlayıcı yok (bkz. AGENTS.md: WKWebView zamanlayıcıları erteliyor).
+  const handleBlock = async (): Promise<boolean> => {
+    const stored = getStoredUser()
+    const target = selectedId
+    if (!stored || !target) return false
+    const next = await blockUser(stored, target)
+    if (!next) return false
+    setCommunity((prev) => prev.filter((u) => u.id !== target))
+    setModerationOpen(false)
+    setSelectedId(null)
+    setOverlayVisible(false)
+    return true
   }
 
   return (
@@ -503,7 +527,19 @@ export default function Leaderboard() {
             >
               <ChevronLeftIcon />
             </button>
-            <span style={{ color: 'rgba(255, 255, 255, 0.3)', fontSize: '18px', letterSpacing: '2px' }}>&#8226;&#8226;&#8226;</span>
+            {/* Üç nokta artık gerçek bir menü: bildir / engelle. Kendi ekranında ve
+                giriş yapmamış kullanıcıda gösterilmiyor (yapacak bir şey yok). */}
+            {canModerate && !selectedUser.isYou ? (
+              <button
+                onClick={() => setModerationOpen(true)}
+                aria-label={t('mod.aria.more')}
+                style={{ background: 'none', border: 'none', color: 'rgba(255, 255, 255, 0.55)', fontSize: '18px', letterSpacing: '2px', cursor: 'pointer', padding: '4px 2px' }}
+              >
+                &#8226;&#8226;&#8226;
+              </button>
+            ) : (
+              <span />
+            )}
           </div>
 
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0 24px' }}>
@@ -597,6 +633,15 @@ export default function Leaderboard() {
               Close
             </button>
           </div>
+
+          {moderationOpen && (
+            <ModerationSheet
+              name={selectedUser.firstName}
+              onClose={() => setModerationOpen(false)}
+              onReport={() => reportUser(selectedUser.id)}
+              onBlock={handleBlock}
+            />
+          )}
         </div>
       )}
     </main>

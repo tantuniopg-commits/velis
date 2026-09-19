@@ -149,6 +149,17 @@ app.use('/api/auth/forgot-password', authLimiter)
 app.use('/api/auth/verify-reset-code', authLimiter)
 app.use('/api/auth/reset-password', authLimiter)
 app.use('/api/otp', otpLimiter)
+// Bildirme/engelleme: her biri bir DB yazımı (+ bildirim e-postası) - kötüye
+// kullanımı (e-posta yağmuru) kesen sıkı limit.
+const moderationLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests. Please try again later.' },
+})
+app.use('/api/auth/report', moderationLimiter)
+app.use('/api/auth/block', moderationLimiter)
 app.use('/api/auth/avatar', (req, res, next) =>
   (req.method === 'GET' ? avatarReadLimiter : avatarWriteLimiter)(req, res, next)
 )
