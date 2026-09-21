@@ -20,7 +20,7 @@ function extract(name) {
       depth--
       if (depth === 0) {
         const literal = src.slice(i, j + 1)
-        // eslint-disable-next-line no-new-func — our own data literal
+        // eslint-disable-next-line no-new-func -- our own data literal
         return Function(`return (${literal})`)()
       }
     }
