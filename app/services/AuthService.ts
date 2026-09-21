@@ -10,7 +10,17 @@ import { userRepository } from '../repositories'
 import { setAppState } from './AppStateManager'
 import { clearWelcomeSeen, clearUserType, clearLanguageSelected } from '../lib/onboarding'
 import { clearGuideCompleted } from '../lib/guide'
-import { updateProfileRequest, changePasswordRequest, deleteAccountRequest } from '../lib/authApi'
+import {
+  updateProfileRequest,
+  changePasswordRequest,
+  deleteAccountRequest,
+  uploadAvatarRequest,
+  deleteAvatarRequest,
+  reportUserRequest,
+  blockUserRequest,
+  unblockUserRequest,
+  AuthApiError,
+} from '../lib/authApi'
 
 export * from '../lib/auth'
 
@@ -116,6 +126,8 @@ export function createAccount(input: {
   email: string
   id?: string
   isAdmin?: boolean
+  avatarVersion?: number
+  blockedUsers?: string[]
 }): VelisUser {
   const user: VelisUser = {
     firstName: input.firstName.trim(),
@@ -123,6 +135,8 @@ export function createAccount(input: {
     email: input.email.trim(),
     id: input.id,
     isAdmin: input.isAdmin || undefined,
+    avatarVersion: input.avatarVersion || undefined,
+    blockedUsers: input.blockedUsers?.length ? input.blockedUsers : undefined,
   }
   saveUser(user)
   setAppState('REGISTERED')
@@ -134,19 +148,94 @@ export function createAccount(input: {
 // ekran "kaydedildi" gösterip DB'de sessizce eski kalır (bkz. journey stats
 // senkron sorunundaki tutarsızlık, burada aynı hatayı tekrarlamıyoruz).
 // Misafir modda (token yok) sadece yerel - hiç sunucu hesabı yok zaten.
-export async function updateUserName(user: VelisUser, firstName: string, lastName: string): Promise<VelisUser | null> {
+// İsim benzersiz (bkz. server authController isNameTaken): başkası aynı adı
+// kullanıyorsa sunucu 409 dönüyor ve burada 'taken' - çağıran genel "kaydedilemedi"
+// yerine "bu isim alınmış" gösterebilsin. Yine yerel de değiştirilmiyor.
+export async function updateUserName(user: VelisUser, firstName: string, lastName: string): Promise<VelisUser | null | 'taken'> {
   if (!firstName.trim() || !lastName.trim()) return null
   const next: VelisUser = { ...user, firstName: firstName.trim(), lastName: lastName.trim() }
   const token = getStoredToken()
   if (token) {
     try {
       await updateProfileRequest(token, `${next.firstName} ${next.lastName}`.trim())
-    } catch {
+    } catch (e) {
+      if (e instanceof AuthApiError && e.status === 409) return 'taken'
       return null
     }
   }
   saveUser(next)
   return next
+}
+
+// Profil fotoğrafı sunucuda (MongoDB) saklanıyor - başarısız olursa (ağ/sunucu
+// hatası) yerel sürüm de değişmiyor, isim düzenlemedeki aynı ilke: ekran
+// "kaydedildi" gösterip DB'de eski kalmasın. Token yoksa (misafir) yüklenecek
+// bir hesap yok, null dönüyor. Fotoğrafın kendisi cihazda tutulmuyor, sadece
+// sürüm numarası (bkz. VelisUser.avatarVersion).
+export async function updateUserAvatar(user: VelisUser, imageDataUrl: string): Promise<VelisUser | null> {
+  const token = getStoredToken()
+  if (!token) return null
+  try {
+    const res = await uploadAvatarRequest(token, imageDataUrl)
+    const next: VelisUser = { ...user, avatarVersion: res.user.avatarVersion || undefined }
+    saveUser(next)
+    return next
+  } catch {
+    return null
+  }
+}
+
+export async function removeUserAvatar(user: VelisUser): Promise<VelisUser | null> {
+  const token = getStoredToken()
+  if (!token) return null
+  try {
+    await deleteAvatarRequest(token)
+    const next: VelisUser = { ...user, avatarVersion: undefined }
+    saveUser(next)
+    return next
+  } catch {
+    return null
+  }
+}
+
+// Moderasyon (App Store 1.2). Hepsi sunucu gerektiriyor: token yoksa (misafir)
+// yapılacak bir şey yok, başarısızlık sessizce false/null - çağıran kullanıcıya
+// "tekrar dene" gösteriyor ve yerel durum sunucuyla tutarlı kalıyor.
+export async function reportUser(userId: string): Promise<boolean> {
+  const token = getStoredToken()
+  if (!token) return false
+  try {
+    await reportUserRequest(token, userId)
+    return true
+  } catch {
+    return false
+  }
+}
+
+export async function blockUser(user: VelisUser, targetId: string): Promise<VelisUser | null> {
+  const token = getStoredToken()
+  if (!token) return null
+  try {
+    const res = await blockUserRequest(token, targetId)
+    const next: VelisUser = { ...user, blockedUsers: res.blockedUsers }
+    saveUser(next)
+    return next
+  } catch {
+    return null
+  }
+}
+
+export async function unblockUser(user: VelisUser, targetId: string): Promise<VelisUser | null> {
+  const token = getStoredToken()
+  if (!token) return null
+  try {
+    const res = await unblockUserRequest(token, targetId)
+    const next: VelisUser = { ...user, blockedUsers: res.blockedUsers }
+    saveUser(next)
+    return next
+  } catch {
+    return null
+  }
 }
 
 // Gerçek şifre değişimi - hesap oluşturma formuyla BİREBİR aynı kural seti

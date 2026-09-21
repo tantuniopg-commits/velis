@@ -77,6 +77,13 @@ app.use(
 // Gövde boyutu tavanı - hiçbir uç nokta büyük yük almıyor (en fazla birkaç
 // yüz baytlık JSON). Tavan olmadan bir saldırgan dev gövdelerle belleği
 // şişirebilir.
+//
+// TEK istisna profil fotoğrafı: 320x320 JPEG'in base64'ü ~35KB, 16KB'a
+// sığmıyor. Sadece bu yola özel, daha geniş ama yine sınırlı bir parser
+// (sunucu ayrıca ham bayt tavanını 100KB'ta zorluyor - bkz. authController
+// decodeAvatar). GLOBAL parser'dan ÖNCE gelmeli: body-parser gövdeyi bir kez
+// okuyup req._body işaretliyor, ikinci parser onu atlıyor.
+app.use('/api/auth/avatar', express.json({ limit: '150kb' }))
 app.use(express.json({ limit: '16kb' }))
 
 // NoSQL operatör enjeksiyonu: `{"email": {"$gt": ""}}` gibi gövdeler
@@ -102,12 +109,32 @@ const otpLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: 'Too many verification requests. Please try again later.' },
 })
+// Fotoğraf OKUMALARI (GET /api/auth/avatar/:id) genel limitin dışında: bir
+// leaderboard ekranı onlarca <img> isteği atıyor, hepsi genel 120/dk'yı
+// tüketip kullanıcının gerçek API çağrılarını 429'a düşürürdü. Kendi (bol)
+// limitleri var; sürümlü URL'ler zaten tarayıcıda önbelleğe alınıyor.
+const isAvatarRead = (req) => req.method === 'GET' && req.path.startsWith('/api/auth/avatar/')
 const generalLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 120, // authenticated normal kullanım (stats senkronu vb.) için bol
   standardHeaders: true,
   legacyHeaders: false,
+  skip: isAvatarRead,
   message: { error: 'Too many requests. Please slow down.' },
+})
+const avatarReadLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 600,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests. Please slow down.' },
+})
+const avatarWriteLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10, // 15 dk'da 10 yükleme/silme - her biri ~25-100KB'lık bir DB yazımı
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many photo updates. Please try again later.' },
 })
 
 app.use(generalLimiter)
@@ -122,6 +149,20 @@ app.use('/api/auth/forgot-password', authLimiter)
 app.use('/api/auth/verify-reset-code', authLimiter)
 app.use('/api/auth/reset-password', authLimiter)
 app.use('/api/otp', otpLimiter)
+// Bildirme/engelleme: her biri bir DB yazımı (+ bildirim e-postası) - kötüye
+// kullanımı (e-posta yağmuru) kesen sıkı limit.
+const moderationLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests. Please try again later.' },
+})
+app.use('/api/auth/report', moderationLimiter)
+app.use('/api/auth/block', moderationLimiter)
+app.use('/api/auth/avatar', (req, res, next) =>
+  (req.method === 'GET' ? avatarReadLimiter : avatarWriteLimiter)(req, res, next)
+)
 
 app.use('/api/auth', authRoutes)
 app.use('/api/otp', otpRoutes)

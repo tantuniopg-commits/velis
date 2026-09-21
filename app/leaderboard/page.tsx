@@ -1,9 +1,11 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { getStoredUser } from '../services/AuthService'
-import { getStoredStats } from '../lib/auth'
-import { getLeaderboardRequest } from '../lib/authApi'
+import { getStoredUser, reportUser, blockUser } from '../services/AuthService'
+import { getStoredStats, getStoredToken } from '../lib/auth'
+import ModerationSheet from '../ModerationSheet'
+import { getLeaderboardRequest, avatarUrl } from '../lib/authApi'
+import AvatarPhoto from '../AvatarPhoto'
 import { buildRanking, getRankOf, formatMetricValue } from '../services/LeaderboardService'
 import type { LBUser, Metric } from '../services/LeaderboardService'
 import { FONT_SANS } from '../lib/typography'
@@ -146,7 +148,7 @@ function QuoteIcon() {
   )
 }
 
-function Avatar({ name, size, ring }: { name: string; size: number; ring: 'amber' | 'thin' | 'none' }) {
+function Avatar({ name, size, ring, photoUrl }: { name: string; size: number; ring: 'amber' | 'thin' | 'none'; photoUrl?: string }) {
   const initials =
     name
       .trim()
@@ -177,18 +179,24 @@ function Avatar({ name, size, ring }: { name: string; size: number; ring: 'amber
             ? '1px solid rgba(255, 255, 255, 0.15)'
             : 'none',
         boxShadow: ring === 'amber' ? '0 0 12px 1px rgba(255, 178, 90, 0.2)' : 'none',
+        overflow: 'hidden',
       }}
     >
-      <span
-        style={{
-          fontFamily: FONT_SANS,
-          fontWeight: 600,
-          fontSize: `${Math.round(size * 0.34)}px`,
-          color: ring === 'amber' ? '#F3CE8E' : '#D9D3CB',
-        }}
-      >
-        {initials}
-      </span>
+      <AvatarPhoto
+        src={photoUrl}
+        fallback={
+          <span
+            style={{
+              fontFamily: FONT_SANS,
+              fontWeight: 600,
+              fontSize: `${Math.round(size * 0.34)}px`,
+              color: ring === 'amber' ? '#F3CE8E' : '#D9D3CB',
+            }}
+          >
+            {initials}
+          </span>
+        }
+      />
     </div>
   )
 }
@@ -226,7 +234,7 @@ function PodiumSlot({
     >
       <div style={{ position: 'relative' }}>
         {rank === 1 ? <CrownIcon /> : <RankBadge rank={rank} />}
-        <Avatar name={user.firstName} size={size} ring={rank === 1 ? 'amber' : 'thin'} />
+        <Avatar name={user.firstName} size={size} ring={rank === 1 ? 'amber' : 'thin'} photoUrl={user.avatarUrl} />
       </div>
       <div
         style={{
@@ -262,7 +270,7 @@ function ListRow({ user, rank, metric, onOpen }: { user: LBUser; rank: number; m
       <div style={{ width: '22px', fontFamily: FONT_SANS, fontWeight: 600, fontSize: '13px', color: 'rgba(255, 255, 255, 0.4)' }}>
         {rank}
       </div>
-      <Avatar name={user.firstName} size={38} ring="thin" />
+      <Avatar name={user.firstName} size={38} ring="thin" photoUrl={user.avatarUrl} />
       <div style={{ flex: 1, fontFamily: FONT_SANS, fontWeight: 500, fontSize: '14px', color: '#F5F0EA', textAlign: 'left' }}>
         {user.firstName}
       </div>
@@ -301,9 +309,16 @@ export default function Leaderboard() {
 
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [overlayVisible, setOverlayVisible] = useState(false)
+  // Bildirme/engelleme (App Store 1.2) sadece giriş yapmış kullanıcıya - sunucu
+  // token istiyor. Menü ModerationSheet'te.
+  const [canModerate, setCanModerate] = useState(false)
+  const [moderationOpen, setModerationOpen] = useState(false)
 
   useEffect(() => {
     const storedUser = getStoredUser()
+    // Engellediği kişiler listede/podyumda hiç görünmüyor.
+    const blocked = storedUser?.blockedUsers ?? []
+    setCanModerate(!!storedUser && !!getStoredToken())
 
     let cancelled = false
     getLeaderboardRequest()
@@ -312,13 +327,14 @@ export default function Leaderboard() {
         const users: LBUser[] = res.users
           // Kendi satırımız aşağıda "you" olarak ayrı gösteriliyor - listede
           // iki kere görünmesin diye backend id'siyle eşleşeni çıkarıyoruz.
-          .filter((u) => u.id !== storedUser?.id)
+          .filter((u) => u.id !== storedUser?.id && !blocked.includes(u.id))
           .map((u) => ({
             id: u.id,
             firstName: u.name,
             streakDays: u.stats?.currentStreak ?? 0,
             totalXP: u.stats?.totalXP ?? 0,
             quote: 'Keeping the streak alive.',
+            avatarUrl: avatarUrl(u.id, u.avatarVersion),
           }))
         setCommunity(users)
       })
@@ -333,6 +349,7 @@ export default function Leaderboard() {
         totalXP: stats.totalXP,
         quote: 'This is your streak. Keep it going.',
         isYou: true,
+        avatarUrl: avatarUrl(storedUser.id, storedUser.avatarVersion),
       })
     }
 
@@ -365,8 +382,24 @@ export default function Leaderboard() {
     requestAnimationFrame(() => setOverlayVisible(true))
   }
   const closeProfile = () => {
+    setModerationOpen(false)
     setOverlayVisible(false)
     setTimeout(() => setSelectedId(null), 220)
+  }
+
+  // Engelle: kişi listeden çıkıyor ve ekran HEMEN kapanıyor - kapanış senkron,
+  // zamanlayıcı yok (bkz. AGENTS.md: WKWebView zamanlayıcıları erteliyor).
+  const handleBlock = async (): Promise<boolean> => {
+    const stored = getStoredUser()
+    const target = selectedId
+    if (!stored || !target) return false
+    const next = await blockUser(stored, target)
+    if (!next) return false
+    setCommunity((prev) => prev.filter((u) => u.id !== target))
+    setModerationOpen(false)
+    setSelectedId(null)
+    setOverlayVisible(false)
+    return true
   }
 
   return (
@@ -463,7 +496,7 @@ export default function Leaderboard() {
         {you && youRank !== null && youRank > 3 && (
           <div style={rowStyle(true)}>
             <div style={{ width: '28px', fontFamily: FONT_SANS, fontWeight: 600, fontSize: '13px', color: '#E3C08C' }}>#{youRank}</div>
-            <Avatar name={you.firstName} size={38} ring="amber" />
+            <Avatar name={you.firstName} size={38} ring="amber" photoUrl={you.avatarUrl} />
             <div style={{ flex: 1, fontFamily: FONT_SANS, fontWeight: 600, fontSize: '14px', color: '#F5F0EA' }}>{t('leaderboard.you')}</div>
             <div style={{ fontFamily: FONT_SANS, fontWeight: 600, fontSize: '14px', color: '#E3C08C' }}>{formatValue(you, displayMetric)}</div>
           </div>
@@ -494,12 +527,24 @@ export default function Leaderboard() {
             >
               <ChevronLeftIcon />
             </button>
-            <span style={{ color: 'rgba(255, 255, 255, 0.3)', fontSize: '18px', letterSpacing: '2px' }}>&#8226;&#8226;&#8226;</span>
+            {/* Üç nokta artık gerçek bir menü: bildir / engelle. Kendi ekranında ve
+                giriş yapmamış kullanıcıda gösterilmiyor (yapacak bir şey yok). */}
+            {canModerate && !selectedUser.isYou ? (
+              <button
+                onClick={() => setModerationOpen(true)}
+                aria-label={t('mod.aria.more')}
+                style={{ background: 'none', border: 'none', color: 'rgba(255, 255, 255, 0.55)', fontSize: '18px', letterSpacing: '2px', cursor: 'pointer', padding: '4px 2px' }}
+              >
+                &#8226;&#8226;&#8226;
+              </button>
+            ) : (
+              <span />
+            )}
           </div>
 
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0 24px' }}>
             <div style={{ position: 'relative' }}>
-              <Avatar name={selectedUser.firstName} size={104} ring={selectedRank === 1 ? 'amber' : 'thin'} />
+              <Avatar name={selectedUser.firstName} size={104} ring={selectedRank === 1 ? 'amber' : 'thin'} photoUrl={selectedUser.avatarUrl} />
               <div
                 style={{
                   position: 'absolute',
@@ -588,6 +633,15 @@ export default function Leaderboard() {
               Close
             </button>
           </div>
+
+          {moderationOpen && (
+            <ModerationSheet
+              name={selectedUser.firstName}
+              onClose={() => setModerationOpen(false)}
+              onReport={() => reportUser(selectedUser.id)}
+              onBlock={handleBlock}
+            />
+          )}
         </div>
       )}
     </main>

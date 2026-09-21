@@ -18,11 +18,29 @@ export function apiBase() {
   return `${window.location.protocol}//${window.location.hostname}:${AUTH_API_PORT}`
 }
 
-export type AuthApiUser = { id: string; name: string; email: string; phone?: string; stats?: VelisStats; isAdmin?: boolean }
+export type AuthApiUser = {
+  id: string
+  name: string
+  email: string
+  phone?: string
+  stats?: VelisStats
+  isAdmin?: boolean
+  avatarVersion?: number
+  // Engellediği kullanıcıların kimlikleri (bkz. moderationController).
+  blockedUsers?: string[]
+}
 export type AuthApiResult = { token: string; user: AuthApiUser }
 export type AuthApiUserResult = { user: AuthApiUser }
 
-export class AuthApiError extends Error {}
+export class AuthApiError extends Error {
+  // HTTP durum kodu - çağıran, genel hata yerine belirli bir duruma (ör. 409
+  // "isim zaten alınmış") özel mesaj gösterebilsin diye.
+  status?: number
+  constructor(message: string, status?: number) {
+    super(message)
+    this.status = status
+  }
+}
 
 // Backend ücretsiz hosting'de (Render free) 15 dk kullanılmazsa uyuyor;
 // uyandırma isteği ~50 sn sürebiliyor. O yüzden timeout uzun (45 sn) ve
@@ -54,7 +72,7 @@ async function request<T>(method: string, path: string, body?: unknown, token?: 
   }
 
   const data = await res.json().catch(() => ({}))
-  if (!res.ok) throw new AuthApiError(data.error || 'Something went wrong.')
+  if (!res.ok) throw new AuthApiError(data.error || 'Something went wrong.', res.status)
   return data as T
 }
 
@@ -117,6 +135,47 @@ export function updatePreferencesRequest(token: string, prefs: { notificationPre
   return request<{ ok: true }>('PATCH', '/api/auth/preferences', prefs, token)
 }
 
+// Profil fotoğrafı - bkz. app/profile/settings/account/page.tsx. `image`
+// 320x320 JPEG data URL'i (lib/avatarImage.ts); sunucu boyutu/imzayı yeniden
+// doğruluyor. PATCH (PUT değil): sunucunun CORS izin listesinde PUT yok.
+export function uploadAvatarRequest(token: string, image: string) {
+  return request<AuthApiUserResult>('PATCH', '/api/auth/avatar', { image }, token)
+}
+
+export function deleteAvatarRequest(token: string) {
+  return request<AuthApiUserResult>('DELETE', '/api/auth/avatar', undefined, token)
+}
+
+// Bir kullanıcının fotoğrafının herkese açık URL'si (<img src>) - sürüm yoksa/0
+// ise fotoğraf yok demek, çağıran baş harflere düşüyor. ?v= sürümü değişince URL
+// değişiyor, tarayıcı eskisini önbellekten sunmuyor.
+export function avatarUrl(userId: string | undefined, version: number | undefined): string | undefined {
+  if (!userId || !version) return undefined
+  const base = apiBase()
+  if (!base) return undefined
+  return `${base}/api/auth/avatar/${encodeURIComponent(userId)}?v=${version}`
+}
+
+// Moderasyon (App Store 1.2) - bkz. server/src/controllers/moderationController.js.
+// Bildirim anında destek e-postasına düşüyor; aynı fotoğraf 3 farklı kişiden
+// bildirim alırsa otomatik gizleniyor. Engel sunucuda tutuluyor (cihazlar arası).
+export function reportUserRequest(token: string, userId: string, reason?: string) {
+  return request<{ ok: true }>('POST', '/api/auth/report', { userId, reason }, token)
+}
+
+export function blockUserRequest(token: string, userId: string) {
+  return request<{ blockedUsers: string[] }>('POST', `/api/auth/block/${encodeURIComponent(userId)}`, undefined, token)
+}
+
+export function unblockUserRequest(token: string, userId: string) {
+  return request<{ blockedUsers: string[] }>('DELETE', `/api/auth/block/${encodeURIComponent(userId)}`, undefined, token)
+}
+
+export type AuthApiBlockedUser = { id: string; name: string }
+export function getBlocksRequest(token: string) {
+  return request<{ users: AuthApiBlockedUser[] }>('GET', '/api/auth/blocks', undefined, token)
+}
+
 export function changePasswordRequest(token: string, currentPassword: string, newPassword: string, locale: string) {
   return request<{ ok: true }>('PATCH', '/api/auth/password', { currentPassword, newPassword, locale }, token)
 }
@@ -141,7 +200,7 @@ export function resetPasswordRequest(email: string, code: string, newPassword: s
   return request<{ ok: true }>('POST', '/api/auth/reset-password', { email, code, newPassword })
 }
 
-export type AuthApiLeaderboardUser = { id: string; name: string; stats?: VelisStats }
+export type AuthApiLeaderboardUser = { id: string; name: string; stats?: VelisStats; avatarVersion?: number }
 export type AuthApiLeaderboardResult = { users: AuthApiLeaderboardUser[] }
 
 // Leaderboard - SADECE gerçekten kayıt olmuş kullanıcılardan oluşuyor (bkz.

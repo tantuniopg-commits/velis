@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { SettingsShell, SettingsCard, SettingsRow, SANS } from '../shared'
+import { SettingsShell, SettingsCard, SettingsRow, SANS, cardStyle, labelStyle, fieldInputStyle, saveButtonStyle } from '../shared'
 import type { VelisUser } from '../../../lib/auth'
+import ProfilePhotoEditor from '../../../ProfilePhotoEditor'
 import {
   getStoredUser,
   updateUserName,
@@ -46,24 +47,6 @@ function PasswordRuleRow({ label, met }: { label: string; met: boolean }) {
       </span>
     </div>
   )
-}
-
-function fieldInputStyle(focused: boolean, withRightSlot = false) {
-  return {
-    width: '100%',
-    boxSizing: 'border-box' as const,
-    padding: withRightSlot ? '13px 44px 13px 16px' : '13px 16px',
-    borderRadius: '14px',
-    border: focused ? '1px solid rgba(255, 178, 90, 0.55)' : '1px solid rgba(255, 255, 255, 0.12)',
-    boxShadow: focused ? '0 0 0 3px rgba(255, 178, 90, 0.1)' : 'none',
-    background: 'rgba(255, 255, 255, 0.03)',
-    color: '#F5F0EA',
-    fontFamily: SANS,
-    fontWeight: 400,
-    fontSize: '15px',
-    outline: 'none',
-    transition: 'border 200ms ease-out, box-shadow 200ms ease-out',
-  }
 }
 
 // app/profile/page.tsx'teki EyeIcon ile aynı görsel dil - burada tekrarlanıyor
@@ -191,6 +174,10 @@ export default function AccountSettings() {
     setNameError(null)
     const next = await updateUserName(user, firstName, lastName)
     setNameSaving(false)
+    if (next === 'taken') {
+      setNameError(t('profile.edit.nameTaken'))
+      return
+    }
     if (!next) {
       setNameError(t('settings.account.saveFailed'))
       return
@@ -241,6 +228,26 @@ export default function AccountSettings() {
 
   return (
     <SettingsShell title={t('settings.account.title')}>
+      {user && (
+        // SettingsCard yerine kendi kabımız: çok hafif amber ışık ("ambiyans")
+        // fotoğrafı sahneliyor - BAŞLIĞI da kapsaması için kartın TAMAMINA
+        // uygulanıyor (içerik alanına verilince başlıkla arasında sert bir
+        // yatay çizgi oluşuyordu). Fotoğraf mantığı ProfilePhotoEditor'da,
+        // Profil sayfasındaki kalem düğmesiyle AYNI bileşen.
+        <div
+          style={{
+            ...cardStyle,
+            background:
+              'radial-gradient(ellipse 85% 60% at 50% 40%, rgba(255, 178, 90, 0.10) 0%, rgba(255, 178, 90, 0) 100%), rgba(255, 255, 255, 0.02)',
+          }}
+        >
+          <div style={{ padding: '14px 20px 10px', ...labelStyle('#9A948C') }}>{t('settings.account.photo.title')}</div>
+          <div style={{ padding: '6px 20px 22px' }}>
+            <ProfilePhotoEditor user={user} onUserChange={setUser} />
+          </div>
+        </div>
+      )}
+
       <SettingsCard>
         <SettingsRow label={t('settings.account.editName')} onClick={() => openEdit('name')} chevron={editMode !== 'name'} first />
         {editMode === 'name' && (
@@ -376,16 +383,4 @@ export default function AccountSettings() {
       </SettingsCard>
     </SettingsShell>
   )
-}
-
-const saveButtonStyle = {
-  padding: '12px 0',
-  borderRadius: '999px',
-  border: '1px solid rgba(255, 178, 90, 0.45)',
-  background: 'rgba(255, 178, 90, 0.06)',
-  color: '#E3C08C',
-  fontFamily: SANS,
-  fontWeight: 600,
-  fontSize: '14px',
-  cursor: 'pointer',
 }

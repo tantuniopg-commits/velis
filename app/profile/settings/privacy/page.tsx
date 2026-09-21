@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { SettingsShell, SettingsCard, SettingsRow } from '../shared'
 import { useLocale } from '../../../contexts/LocaleContext'
 import { getPrivacyPolicy, getTermsOfService } from '../../../lib/legalDocuments'
@@ -10,6 +11,7 @@ type OpenDoc = 'privacy' | 'terms' | null
 
 export default function PrivacySecuritySettings() {
   const { t, locale } = useLocale()
+  const router = useRouter()
   const [openDoc, setOpenDoc] = useState<OpenDoc>(null)
   const [progress, setProgress] = useState(0)
 
@@ -46,6 +48,9 @@ export default function PrivacySecuritySettings() {
             setOpenDoc('terms')
           }}
         />
+      </SettingsCard>
+      <SettingsCard>
+        <SettingsRow label={t('settings.privacy.blocked')} onClick={() => router.push('/profile/settings/blocked')} first />
       </SettingsCard>
     </SettingsShell>
   )

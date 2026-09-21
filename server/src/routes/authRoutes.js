@@ -9,6 +9,9 @@ const {
   updateProfile,
   updatePreferences,
   updatePassword,
+  updateAvatar,
+  removeAvatar,
+  getAvatar,
   removeAccount,
   leaderboard,
   listUsers,
@@ -16,6 +19,7 @@ const {
   checkPhone,
 } = require('../controllers/authController')
 const { forgotPassword, verifyResetCode, resetPassword } = require('../controllers/passwordResetController')
+const { reportUser, blockUser, unblockUser, listBlocks, listReports, adminRemoveAvatar } = require('../controllers/moderationController')
 
 const router = express.Router()
 
@@ -28,6 +32,16 @@ router.patch('/stats', requireAuth, asyncHandler(updateStats))
 router.patch('/profile', requireAuth, asyncHandler(updateProfile))
 router.patch('/preferences', requireAuth, asyncHandler(updatePreferences))
 router.patch('/password', requireAuth, asyncHandler(updatePassword))
+router.patch('/avatar', requireAuth, asyncHandler(updateAvatar))
+router.delete('/avatar', requireAuth, asyncHandler(removeAvatar))
+// Herkese açık - <img src> Authorization başlığı gönderemez, leaderboard'daki
+// başkalarının fotoğrafları da buradan geliyor (bkz. getAvatar).
+router.get('/avatar/:id', asyncHandler(getAvatar))
+// Moderasyon (App Store 1.2): bildirme + engelleme (bkz. moderationController).
+router.post('/report', requireAuth, asyncHandler(reportUser))
+router.post('/block/:id', requireAuth, asyncHandler(blockUser))
+router.delete('/block/:id', requireAuth, asyncHandler(unblockUser))
+router.get('/blocks', requireAuth, asyncHandler(listBlocks))
 router.delete('/account', requireAuth, asyncHandler(removeAccount))
 router.post('/forgot-password', asyncHandler(forgotPassword))
 router.post('/verify-reset-code', asyncHandler(verifyResetCode))
@@ -38,5 +52,8 @@ router.get('/check-phone', asyncHandler(checkPhone))
 // Admin panelindeki kayıtlı hesaplar görünümü - SADECE admin e-postalarıyla
 // (bkz. middleware/requireAdmin.js, lib/admins.js).
 router.get('/users', requireAdmin, asyncHandler(listUsers))
+// Yönetici moderasyonu: bildirim listesi + uygunsuz fotoğrafı silme.
+router.get('/reports', requireAdmin, asyncHandler(listReports))
+router.delete('/users/:id/avatar', requireAdmin, asyncHandler(adminRemoveAvatar))
 
 module.exports = router

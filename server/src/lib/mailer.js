@@ -364,7 +364,37 @@ async function sendWelcomeEmail(to, name, locale) {
   await sendResolvedCopyEmail(to, { subject: copy.subject, lines: safeCopy.lines })
 }
 
+// Kullanıcı bildirimi (bkz. controllers/moderationController.js reportUser) -
+// destek adresine ANINDA düşüyor (App Store 1.2: bildirimlere zamanında cevap).
+// Alıcı MODERATION_EMAIL, yoksa destek adresi. İngilizce, sadece ekibe gidiyor.
+// Bildirenin/bildirilenin girdiği metinler HTML'e girdiği için kaçışlanıyor.
+function escapeHtml(v) {
+  return String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c])
+}
+
+async function sendModerationReportEmail(info) {
+  const to = process.env.MODERATION_EMAIL || 'contact@forsvelis.com'
+  const subject = `[VELIS] User reported${info.count > 1 ? ` (${info.count} reports)` : ''}${info.hidden ? ' - photo auto-hidden' : ''}`
+  const lines = [
+    `Reported user: ${info.reportedName} (${info.reportedId})`,
+    `Reported by: ${info.reporterName} (${info.reporterId})`,
+    info.reason ? `Reason: ${info.reason}` : null,
+    `Reports against this user: ${info.count}`,
+    info.hasPhoto ? `Photo: ${info.photoUrl}${info.hidden ? '  (auto-hidden after repeated reports; the link now returns 404)' : ''}` : 'Photo: none',
+    '',
+    `To delete the photo: DELETE /api/auth/users/${info.reportedId}/avatar (admin token).`,
+    'To see all recent reports: GET /api/auth/reports (admin token).',
+  ].filter((l) => l !== null)
+  const html = emailShell(
+    null,
+    `<p style="font-size:16px;color:#F5F0EA;margin:0 0 12px;font-weight:600">User reported</p>
+    ${lines.map((l) => `<p style="font-size:13px;color:#D2CCC5;margin:0 0 6px;line-height:1.5;word-break:break-word">${escapeHtml(l)}</p>`).join('')}`
+  )
+  await sendEmail(to, subject, html, lines.join('\n'))
+}
+
 module.exports = {
+  sendModerationReportEmail,
   sendVerificationEmail,
   sendPasswordChangedEmail,
   sendPasswordResetEmail,
