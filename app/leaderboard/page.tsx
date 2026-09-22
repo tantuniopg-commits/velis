@@ -264,17 +264,23 @@ function PodiumSlot({
   )
 }
 
-function ListRow({ user, rank, metric, onOpen }: { user: LBUser; rank: number; metric: Metric; onOpen: () => void }) {
+// "You" satırı artık listenin ayrı, sabit bir parçası değil - rest.map
+// içinde diğer herkesle aynı yerde render ediliyor, sadece isYou ile
+// vurgulanıyor (amber halka/metin, "You" etiketi kendi adı yerine).
+function ListRow({ user, rank, metric, youLabel, onOpen }: { user: LBUser; rank: number; metric: Metric; youLabel: string; onOpen: () => void }) {
+  const highlighted = !!user.isYou
   return (
-    <button className="lb-row" onClick={onOpen} style={rowStyle(false)}>
-      <div style={{ width: '22px', fontFamily: FONT_SANS, fontWeight: 600, fontSize: '13px', color: 'rgba(255, 255, 255, 0.4)' }}>
+    <button className="lb-row" onClick={onOpen} style={rowStyle(highlighted)}>
+      <div style={{ width: '22px', fontFamily: FONT_SANS, fontWeight: 600, fontSize: '13px', color: highlighted ? '#E3C08C' : 'rgba(255, 255, 255, 0.4)' }}>
         {rank}
       </div>
-      <Avatar name={user.firstName} size={38} ring="thin" photoUrl={user.avatarUrl} />
-      <div style={{ flex: 1, fontFamily: FONT_SANS, fontWeight: 500, fontSize: '14px', color: '#F5F0EA', textAlign: 'left' }}>
-        {user.firstName}
+      <Avatar name={user.firstName} size={38} ring={highlighted ? 'amber' : 'thin'} photoUrl={user.avatarUrl} />
+      <div style={{ flex: 1, fontFamily: FONT_SANS, fontWeight: highlighted ? 600 : 500, fontSize: '14px', color: '#F5F0EA', textAlign: 'left' }}>
+        {highlighted ? youLabel : user.firstName}
       </div>
-      <div style={{ fontFamily: FONT_SANS, fontWeight: 500, fontSize: '14px', color: '#D2CCC5' }}>{formatValue(user, metric)}</div>
+      <div style={{ fontFamily: FONT_SANS, fontWeight: highlighted ? 600 : 500, fontSize: '14px', color: highlighted ? '#E3C08C' : '#D2CCC5' }}>
+        {formatValue(user, metric)}
+      </div>
     </button>
   )
 }
@@ -371,7 +377,7 @@ export default function Leaderboard() {
     return () => cancelAnimationFrame(raf)
   }, [displayMetric])
 
-  const { top3, rest, youRank } = buildRanking(community, you, displayMetric)
+  const { top3, rest } = buildRanking(community, you, displayMetric)
 
   const allUsers = you ? [...community, you] : community
   const selectedUser = selectedId ? allUsers.find((u) => u.id === selectedId) ?? null : null
@@ -487,20 +493,9 @@ export default function Leaderboard() {
 
         <div style={{ marginTop: '40px' }}>
           {rest.map((u, i) => (
-            <ListRow key={u.id} user={u} rank={i + 4} metric={displayMetric} onOpen={() => openProfile(u.id)} />
+            <ListRow key={u.id} user={u} rank={i + 4} metric={displayMetric} youLabel={t('leaderboard.you')} onOpen={() => openProfile(u.id)} />
           ))}
         </div>
-
-        {/* youRank <= 3 ise "You" zaten podyumda gösteriliyor - burada
-            tekrar etmiyoruz (bkz. buildRanking, services/LeaderboardService.ts). */}
-        {you && youRank !== null && youRank > 3 && (
-          <div style={rowStyle(true)}>
-            <div style={{ width: '28px', fontFamily: FONT_SANS, fontWeight: 600, fontSize: '13px', color: '#E3C08C' }}>#{youRank}</div>
-            <Avatar name={you.firstName} size={38} ring="amber" photoUrl={you.avatarUrl} />
-            <div style={{ flex: 1, fontFamily: FONT_SANS, fontWeight: 600, fontSize: '14px', color: '#F5F0EA' }}>{t('leaderboard.you')}</div>
-            <div style={{ fontFamily: FONT_SANS, fontWeight: 600, fontSize: '14px', color: '#E3C08C' }}>{formatValue(you, displayMetric)}</div>
-          </div>
-        )}
       </div>
 
       <div style={{ height: '108px', flexShrink: 0 }} />
