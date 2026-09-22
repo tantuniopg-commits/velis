@@ -18,19 +18,21 @@ export function formatMetricValue(user: LBUser, metric: Metric): string {
 
 export type Ranking = { top3: LBUser[]; rest: LBUser[]; youRank: number | null }
 
-// Podyum (top3) + geri kalan liste + "You" satırının sırası - Leaderboard
-// ekranının okuduğu tek türetme noktası. "You" HER ZAMAN sıralamaya dahil
-// edilerek hesaplanıyor (önceden top3/rest sadece community'den, youRank ise
+// Podyum (top3) + geri kalan liste + "You"nun sırası - Leaderboard ekranının
+// okuduğu tek türetme noktası. "You" HER ZAMAN sıralamaya dahil edilerek
+// hesaplanıyor (önceden top3/rest sadece community'den, youRank ise
 // community+you'dan hesaplanıyordu - bu, "You"nun XP'si podyumdaki 1.'den
 // yüksek olsa bile tacın yanlış kişide kalmasına yol açan bir tutarsızlıktı).
-// "You" top3'e girerse podyumda görünüyor ve alttaki sabitlenmiş "You"
-// satırı (page.tsx) tekrar göstermiyor - bkz. youRank <= 3 kontrolü orada.
+//
+// "You", top3'e girmediyse "rest" içinde GERÇEK sırasındaki yerinde duruyor -
+// eskiden listenin en altına sabit bir satır olarak ekleniyordu (rozet doğru
+// numarayı gösterse de görsel konumu yanlıştı: 7. sıradaki biri, altındaki
+// 8./9./10. sıradaki herkesten SONRA görünüyordu). page.tsx bu satırı
+// isYou'ya bakarak vurguluyor (bkz. ListRow).
 export function buildRanking(community: LBUser[], you: LBUser | null, metric: Metric): Ranking {
   const combined = sortByMetric(you ? [...community, you] : community, metric)
   const top3 = combined.slice(0, 3)
-  // "Rest" listesi "You"yu asla içermiyor - top3'e girmediyse zaten ayrı,
-  // sabitlenmiş satırda gösteriliyor (bkz. page.tsx), burada tekrar etmesin.
-  const rest = combined.slice(3).filter((u) => !u.isYou)
+  const rest = combined.slice(3)
   const youRank = you ? combined.findIndex((u) => u.isYou) + 1 : null
 
   return { top3, rest, youRank }
