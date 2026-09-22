@@ -20,10 +20,16 @@ export default function GuideDialogue({
   lines,
   onDone,
   onTypingChange,
+  hint,
 }: {
   lines: string[]
   onDone?: () => void
   onTypingChange?: (typing: boolean) => void
+  // Sadece turun İLK sahnesinde (bkz. WelcomeScreen.tsx) geçiliyor - kartın
+  // altında küçük, silik bir "kutucuğa dokun" ipucu. Kullanıcı etkileşimi
+  // henüz öğrenmediği tek an burası; sonraki her sahnede zaten biliyor,
+  // ipucu tekrar gösterilmiyor.
+  hint?: string
 }) {
   const [cardVisible, setCardVisible] = useState(false)
   const [lineIndex, setLineIndex] = useState(0)
@@ -110,31 +116,53 @@ export default function GuideDialogue({
   }
 
   return (
-    <div
-      onClick={handleTap}
-      style={{
-        maxWidth: '290px',
-        padding: '22px',
-        borderRadius: '24px',
-        background: 'rgba(21, 17, 15, 0.9)',
-        border: '1px solid rgba(200, 155, 90, 0.25)',
-        boxShadow: '0 0 30px 2px rgba(200, 155, 90, 0.12), 0 20px 44px rgba(0, 0, 0, 0.4)',
-        opacity: cardVisible ? 1 : 0,
-        transform: cardVisible ? 'scale(1)' : 'scale(0.94)',
-        transformOrigin: 'left center',
-        transition: `opacity ${CARD_FADE_MS}ms ease-in-out, transform ${CARD_FADE_MS}ms ease-in-out`,
-        pointerEvents: 'auto',
-        cursor: lineDone ? 'pointer' : 'default',
-      }}
-    >
-      <div style={mainStyle}>
-        {mainPart}
-        {typingMain && <span style={{ opacity: 0.5 }}>|</span>}
+    <div>
+      <div
+        onClick={handleTap}
+        style={{
+          maxWidth: '290px',
+          padding: '22px',
+          borderRadius: '24px',
+          background: 'rgba(21, 17, 15, 0.9)',
+          border: '1px solid rgba(200, 155, 90, 0.25)',
+          boxShadow: '0 0 30px 2px rgba(200, 155, 90, 0.12), 0 20px 44px rgba(0, 0, 0, 0.4)',
+          opacity: cardVisible ? 1 : 0,
+          transform: cardVisible ? 'scale(1)' : 'scale(0.94)',
+          transformOrigin: 'left center',
+          transition: `opacity ${CARD_FADE_MS}ms ease-in-out, transform ${CARD_FADE_MS}ms ease-in-out`,
+          pointerEvents: 'auto',
+          cursor: lineDone ? 'pointer' : 'default',
+        }}
+      >
+        <div style={mainStyle}>
+          {mainPart}
+          {typingMain && <span style={{ opacity: 0.5 }}>|</span>}
+        </div>
+        {(supportPart || typingSupport) && (
+          <div style={supportStyle}>
+            {supportPart}
+            {typingSupport && <span style={{ opacity: 0.5 }}>|</span>}
+          </div>
+        )}
       </div>
-      {(supportPart || typingSupport) && (
-        <div style={supportStyle}>
-          {supportPart}
-          {typingSupport && <span style={{ opacity: 0.5 }}>|</span>}
+      {hint && (
+        <div
+          aria-hidden
+          style={{
+            marginTop: '10px',
+            padding: '0 6px',
+            fontFamily: FONT_SANS,
+            fontWeight: 400,
+            fontSize: '11px',
+            letterSpacing: '0.2px',
+            color: 'rgba(244, 241, 235, 0.34)',
+            textAlign: 'left',
+            opacity: cardVisible ? 1 : 0,
+            transition: `opacity ${CARD_FADE_MS}ms ease-in-out`,
+            pointerEvents: 'none',
+          }}
+        >
+          {hint}
         </div>
       )}
     </div>

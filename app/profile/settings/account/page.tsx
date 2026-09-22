@@ -148,6 +148,8 @@ export default function AccountSettings() {
   const [nameSaving, setNameSaving] = useState(false)
   const [nameError, setNameError] = useState<string | null>(null)
 
+  const [confirmingLogOut, setConfirmingLogOut] = useState(false)
+
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [finalConfirmingDelete, setFinalConfirmingDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -336,7 +338,21 @@ export default function AccountSettings() {
       </SettingsCard>
 
       <SettingsCard>
-        <SettingsRow label={t('settings.account.logOut')} onClick={handleLogOut} chevron={false} first />
+        {!confirmingLogOut ? (
+          <SettingsRow label={t('settings.account.logOut')} onClick={() => setConfirmingLogOut(true)} chevron={false} first />
+        ) : (
+          <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <p style={{ margin: 0, fontFamily: SANS, fontSize: '13px', color: '#8F8A83' }}>{t('settings.account.logOutConfirm')}</p>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button onClick={handleLogOut} style={saveButtonStyle}>
+                {t('settings.account.logOutConfirmYes')}
+              </button>
+              <button onClick={() => setConfirmingLogOut(false)} style={{ ...saveButtonStyle, background: 'transparent' }}>
+                {t('common.cancel')}
+              </button>
+            </div>
+          </div>
+        )}
       </SettingsCard>
 
       <SettingsCard>

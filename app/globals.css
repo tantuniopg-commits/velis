@@ -249,7 +249,9 @@ body {
 
 /* Ritual Home (app/page.tsx): calm ambient motion around the (untouched)
    ritual object - background glow breathing, the object's own wrapper
-   floating by 1-2px, and the idle tap-hand icon gently pulsing. */
+   floating by 1-2px, the idle hint icon (up arrow) gently pulsing, and -
+   only before first registration - the amber bead itself breathing/glowing
+   to teach a first-time user that it's tappable. */
 .ritual-glow--pulse {
   animation: ritualGlowPulse 6000ms ease-in-out infinite;
 }
@@ -259,11 +261,17 @@ body {
 .ritual-object--float {
   animation: ritualObjectFloat 5000ms ease-in-out infinite;
 }
-.ritual-hand--pulse {
-  animation: ritualHandPulse 2200ms ease-in-out infinite;
+.ritual-hint-icon--pulse {
+  animation: ritualHintIconPulse 2200ms ease-in-out infinite;
 }
 .ritual-press-pulse {
   animation: ritualPressPulse 220ms ease-in-out 1;
+}
+/* bkz. app/RitualObject.tsx - sadece idle + attract=true iken. transform'u
+   burada da (-50%, -50%) ile taşıyoruz ki animasyon inline stildeki
+   merkezlemeyi geçersiz kılınca konum kaymasın. */
+.ritual-bead--attract {
+  animation: ritualBeadAttract 2200ms ease-in-out infinite;
 }
 
 @keyframes ritualPressPulse {
@@ -326,7 +334,7 @@ body {
   }
 }
 
-@keyframes ritualHandPulse {
+@keyframes ritualHintIconPulse {
   0%,
   100% {
     opacity: 0.55;
@@ -338,11 +346,31 @@ body {
   }
 }
 
+/* Amber çekirdek dikkat çekme: büyüyüp küçülüyor + aynı anda parlıyor
+   (box-shadow'u genişleyip koyulaşıyor). Merkez konumu (-50%, -50%) her
+   karede korunuyor. */
+@keyframes ritualBeadAttract {
+  0%,
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+    box-shadow:
+      0 0 12px 4px rgba(255, 200, 130, 0.7),
+      0 0 22px 7px rgba(240, 138, 36, 0.35);
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.32);
+    box-shadow:
+      0 0 20px 7px rgba(255, 205, 140, 0.95),
+      0 0 38px 14px rgba(240, 138, 36, 0.55);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .ritual-glow--pulse,
   .ritual-rings--pulse,
   .ritual-object--float,
-  .ritual-hand--pulse,
+  .ritual-hint-icon--pulse,
+  .ritual-bead--attract,
   .ritual-press-pulse {
     animation: none !important;
   }

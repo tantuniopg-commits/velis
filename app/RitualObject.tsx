@@ -28,11 +28,17 @@ export default function RitualObject({
   alive = false,
   holding = false,
   completed = false,
+  attract = false,
 }: {
   activating?: boolean
   alive?: boolean
   holding?: boolean
   completed?: boolean
+  // İlk kayıttan önceki ilk ritüelde - kullanıcı dokunabileceğini henüz
+  // bilmiyor. Amber çekirdek yavaşça büyüyüp küçülerek ve parlayarak
+  // dikkat çekiyor (bkz. app/page.tsx, app/globals.css ritualBeadAttract).
+  // Sadece idle'da anlamlı - activating/alive/completed hepsi false iken.
+  attract?: boolean
 }) {
   const asleep = completed
   const spread = (activating || alive) && !asleep
@@ -174,7 +180,7 @@ export default function RitualObject({
           brightness/warmth shifts with state. */}
       <div
         aria-hidden
-        className={`ritual-bead${living ? ' ritual-bead--alive' : ''}`}
+        className={`ritual-bead${living ? ' ritual-bead--alive' : ''}${attract && !spread ? ' ritual-bead--attract' : ''}`}
         style={{
           position: 'absolute',
           top: '50%',

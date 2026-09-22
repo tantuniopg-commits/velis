@@ -22,7 +22,7 @@ import { useLocale } from './contexts/LocaleContext'
 // sağlıyor.
 
 export default function WelcomeScreen({ onContinue, userType }: { onContinue: () => void; userType: UserType }) {
-  const { locale } = useLocale()
+  const { t, locale } = useLocale()
   // VELIS Guide - sadece gerçek ilk kullanıcıda, "tamamlandı" bayrağı
   // set edilene (Skip veya son adım) kadar hiç kaybolmuyor.
   const [showGuide, setShowGuide] = useState(false)
@@ -77,6 +77,7 @@ export default function WelcomeScreen({ onContinue, userType }: { onContinue: ()
           guidePlacement="center"
           guideSize={70}
           lines={getWelcomeLines(userType, locale)}
+          hint={t('guide.tapHint')}
           onDialogueDone={() => handleContinue()}
           onSkip={() => {
             setGuideCompleted()

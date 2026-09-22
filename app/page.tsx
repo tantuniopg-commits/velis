@@ -35,7 +35,7 @@ import { getRitualDurationSec, PRODUCTION_RITUAL_DURATION_SEC } from './lib/ritu
 import { FONT_SANS } from './lib/typography'
 import { isDev } from './constants/env'
 import { factoryReset } from './services/DeveloperService'
-import { setAppState } from './services/AppStateManager'
+import { setAppState, getAppState } from './services/AppStateManager'
 
 // Ritüel süresi artık merkezi bir yapılandırma servisinden geliyor (bkz.
 // lib/ritualConfig.ts) - burada hiç sabitlenmiyor. Ekran her ritüel
@@ -61,24 +61,14 @@ function formatTime(totalSeconds: number) {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
 }
 
-// Basit, minimal "dokun" ikonu - parmak + hafif dokunuş dalgası çizgileri.
-function TapIcon({ size = 40, color = '#D9C9AE' }: { size?: number; color?: string }) {
+// İlk kayıt öncesi idle ipucu - objeye doğru yukarı işaret eden, bizim
+// amber temamızdaki minimal bir ok (bkz. handleTap üstündeki preRegistration
+// notu). Eskiden buradaki bir "dokun" eliydi.
+function UpArrowIcon({ size = 22, color = '#D8AE6C' }: { size?: number; color?: string }) {
   return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 48 48"
-      fill="none"
-      stroke={color}
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M18 26V12a3 3 0 0 1 6 0v10" />
-      <path d="M24 22V10a3 3 0 0 1 6 0v13" />
-      <path d="M30 23V14a3 3 0 0 1 6 0v14c0 6-4 10-10 10h-2c-3.5 0-5.5-1-8-4l-4.5-5.5a2.3 2.3 0 0 1 3.3-3.2L18 27" />
-      <path d="M34 8c1.6 1 2.6 2.6 2.6 4.6" opacity="0.6" />
-      <path d="M37 5c2.4 1.6 3.8 4 3.8 6.8" opacity="0.4" />
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 19V5" />
+      <path d="M6 11l6-6 6 6" />
     </svg>
   )
 }
@@ -235,9 +225,17 @@ function Landing() {
   // "toplara dokun, ekstra XP") objeyi spotlight'lıyor.
   const objectRect = useTargetRect(objectRef, showRitualGuide && (phase === 'idle' || phase === 'ritual'))
 
+  // İlk kayıttan ÖNCEKİ idle ekranı için ekstra dikkat çekme (bkz. UpArrowIcon,
+  // RitualObject attract prop) - kullanıcı henüz hesap açmamışken (FIRST_LAUNCH/
+  // GUEST/REGISTERING) objenin dokunulabilir olduğunu daha güçlü anlatıyoruz.
+  // REGISTERED olduktan sonra bu ekstra ipucu bir daha hiç görünmüyor. Mount
+  // SONRASI okunuyor (localStorage) - hydration uyuşmazlığı riskini önlüyor.
+  const [preRegistration, setPreRegistration] = useState(false)
+
   useEffect(() => {
     isFirstEverRitualRef.current = getStoredStats().journeyTimestamp === null
     setShowRitualGuide(!isGuideCompleted() && isFirstEverRitualRef.current)
+    setPreRegistration(getAppState() !== 'REGISTERED')
   }, [])
 
   // ---- Amber çekirdek toplama mekaniği: ritüel sırasında rastgele
@@ -561,6 +559,12 @@ function Landing() {
   // ritüel ancak kullanıcı "Continue"a basınca başlar. ----
   const handleTap = () => {
     if (phase !== 'idle') return
+    // RITUAL rehber sahnesi hâlâ konuşuyorsa (ilk kullanım, bkz.
+    // showRitualGuide/idleGuideDone) objeye dokunma henüz ritüeli
+    // başlatmasın - "Nesne yaklaşık 5 saniye içinde etkinleşecek" son
+    // cümlesi bitip rehber kapanana kadar bekletiyoruz. Rehber daha önce
+    // tamamlandıysa (showRitualGuide=false) bu hiç devreye girmiyor.
+    if (showRitualGuide && !idleGuideDone) return
     triggerHaptic()
     playSound('activate')
     saveRitualSession({
@@ -833,6 +837,7 @@ function Landing() {
                 alive={phase === 'ritual'}
                 holding={phase === 'ritual' && isHoldingRitual}
                 completed={phase === 'complete'}
+                attract={preRegistration && phase === 'idle'}
               />
             </div>
           </div>
@@ -858,9 +863,14 @@ function Landing() {
               pointerEvents: 'none',
             }}
           >
-            <div className="ritual-hand--pulse">
-              <TapIcon size={38} color="#D9C9AE" />
-            </div>
+            {/* Ok + değişen metin SADECE ilk kayıttan önce - bkz. preRegistration.
+                Kayıtlı kullanıcı objenin ne olduğunu zaten biliyor, ekstra
+                ipucuna ihtiyacı yok. */}
+            {preRegistration && (
+              <div className="ritual-hint-icon--pulse">
+                <UpArrowIcon size={22} color="#D8AE6C" />
+              </div>
+            )}
             <div
               style={{
                 fontFamily: FONT_SANS,
@@ -871,7 +881,7 @@ function Landing() {
                 textAlign: 'center',
               }}
             >
-              {t('ritual.idle.cta')}
+              {t(preRegistration ? 'ritual.idle.cta.preRegister' : 'ritual.idle.cta')}
             </div>
           </div>
 

@@ -42,6 +42,7 @@ export default function GuideOverlay({
   guideSize,
   onDialogueDone,
   onSkip,
+  hint,
 }: {
   targetRect: DOMRect | null
   lines: string[]
@@ -50,6 +51,9 @@ export default function GuideOverlay({
   guideSize?: number
   onDialogueDone?: () => void
   onSkip: () => void
+  // Sadece turun ilk sahnesinden geçiliyor (bkz. WelcomeScreen.tsx) - bkz.
+  // GuideDialogue.tsx.
+  hint?: string
 }) {
   const { t } = useLocale()
   const guideCentered = guidePlacement === 'center'
@@ -172,7 +176,7 @@ export default function GuideOverlay({
               transition: 'top 250ms ease-out, left 250ms ease-out, opacity 400ms ease-in-out',
             }}
           >
-            <GuideDialogue lines={lines} onDone={handleMessageDone} onTypingChange={setSpeaking} />
+            <GuideDialogue lines={lines} onDone={handleMessageDone} onTypingChange={setSpeaking} hint={hint} />
           </div>
         </>
       ) : (
@@ -214,7 +218,7 @@ export default function GuideOverlay({
               transition: 'opacity 400ms ease-in-out',
             }}
           >
-            <GuideDialogue lines={lines} onDone={handleMessageDone} onTypingChange={setSpeaking} />
+            <GuideDialogue lines={lines} onDone={handleMessageDone} onTypingChange={setSpeaking} hint={hint} />
           </div>
         </div>
       )}
