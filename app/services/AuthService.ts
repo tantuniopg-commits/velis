@@ -4,12 +4,22 @@
 // artık userRepository üzerinden geçiyor (bkz. repositories/) - Stats hâlâ
 // doğrudan lib/auth.ts üzerinden (repository soyutlaması şimdilik sadece
 // User için, bkz. repositories/index.ts'teki not).
-import { clearStats, clearToken, getStoredToken } from '../lib/auth'
+import {
+  clearStats,
+  clearToken,
+  getStoredToken,
+  getStoredStats,
+  saveStats,
+  saveToken,
+  mergeStatsPreferringMoreAdvanced,
+  ZERO_STATS,
+} from '../lib/auth'
 import type { VelisUser } from '../lib/auth'
 import { userRepository } from '../repositories'
 import { setAppState } from './AppStateManager'
 import { clearWelcomeSeen, clearUserType, clearLanguageSelected } from '../lib/onboarding'
 import { clearGuideCompleted } from '../lib/guide'
+import { syncStatsToServer } from '../lib/journey'
 import {
   updateProfileRequest,
   changePasswordRequest,
@@ -19,6 +29,7 @@ import {
   reportUserRequest,
   blockUserRequest,
   unblockUserRequest,
+  loginRequest,
   AuthApiError,
 } from '../lib/authApi'
 
@@ -29,13 +40,44 @@ export * from '../lib/auth'
 // mesajına düşüyordu, kullanıcı gerçek sebebi hiç göremiyordu. Böyle bir hatadan
 // sonra token'ı hemen temizliyoruz: geçersiz bir token'ı elde tutmanın faydası
 // yok, sadece sonraki her isteği aynı şekilde başarısız kılar. Kullanıcı adı ve
-// yerel ilerleme KORUNUYOR (resetDeviceToFirstLaunch'ın aksine) - bu bir çıkış
-// değil, sadece oturumun yenilenmesi (Ayarlar > Hesap > Çıkış Yap, sonra tekrar
-// giriş) gerektiği anlamına geliyor.
+// yerel ilerleme KORUNUYOR - bkz. reauthenticate(), NOT resetDeviceToFirstLaunch/
+// logOut: o, journey/stats'ı SİLİYOR, session-expired için kullanılırsa tam da
+// kurtarmaya çalıştığımız ilerlemeyi kaybettirir ("Aysun Yavuz" vakasının bir
+// başka türü - bkz. lib/auth.ts mergeStatsPreferringMoreAdvanced yorumu).
 function isSessionExpired(e: unknown): boolean {
   if (!(e instanceof AuthApiError) || e.status !== 401) return false
   clearToken()
   return true
+}
+
+// Oturum süresi dolunca (bkz. isSessionExpired) kullanıcının YEREL ilerlemesini
+// kaybetmeden token'ı yenilemesi için. "Çıkış Yap" (logOut/resetDeviceToFirstLaunch)
+// KASITLI OLARAK burada KULLANILMIYOR - o journey/stats'ı SİLİYOR; session-expired
+// senaryosunda kullanıcıya "çıkış yapıp tekrar gir" demek, arka planda sessizce
+// senkron edilememiş günlerce ilerlemeyi anında kaybettirirdi. Bunun yerine sadece
+// yeniden giriş yapılıyor: yeni token alınıyor, cihazdaki ve sunucudaki stats
+// birleştiriliyor (hangi taraf ilerideyse o kazanıyor - bkz. lib/auth.ts
+// mergeStatsPreferringMoreAdvanced, app/profile/page.tsx handleSignIn'deki AYNI
+// mantık), cihaz ilerideyse birleşmiş sonuç hemen sunucuya geri yazılıyor.
+export async function reauthenticate(user: VelisUser, password: string): Promise<VelisUser | null> {
+  try {
+    const result = await loginRequest(user.email, password)
+    saveToken(result.token)
+    const serverStats = result.user.stats ?? ZERO_STATS
+    const merged = mergeStatsPreferringMoreAdvanced(getStoredStats(), serverStats)
+    saveStats(merged)
+    if (merged.totalXP > serverStats.totalXP) syncStatsToServer(merged)
+    const next: VelisUser = {
+      ...user,
+      isAdmin: result.user.isAdmin || undefined,
+      avatarVersion: result.user.avatarVersion || undefined,
+      blockedUsers: result.user.blockedUsers?.length ? result.user.blockedUsers : undefined,
+    }
+    saveUser(next)
+    return next
+  } catch {
+    return null
+  }
 }
 
 // Bu üç fonksiyon KASITLI OLARAK lib/auth.ts'in doğrudan re-export'unu

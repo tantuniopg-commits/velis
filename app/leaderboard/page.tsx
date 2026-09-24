@@ -630,12 +630,14 @@ export default function Leaderboard() {
             </button>
           </div>
 
-          {moderationOpen && (
+          {moderationOpen && getStoredUser() && (
             <ModerationSheet
               name={selectedUser.firstName}
+              user={getStoredUser()!}
               onClose={() => setModerationOpen(false)}
               onReport={() => reportUser(selectedUser.id)}
               onBlock={handleBlock}
+              onUserChange={() => {}}
             />
           )}
         </div>

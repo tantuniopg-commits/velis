@@ -23,7 +23,9 @@ export const translations = {
     'common.save': 'Save',
     'common.saving': 'Saving…',
     'common.back': 'Back',
-    'common.sessionExpired': 'Your session has expired. Log out and sign in again to continue.',
+    'common.sessionExpired': 'Your session has expired. Enter your password to reconnect.',
+    'session.reconnect': 'Reconnect',
+    'session.reconnectFailed': "That password didn't work.",
 
     'connection.line': 'VELIS needs an internet connection to continue.',
     'connection.retry': 'Try again',
@@ -271,7 +273,9 @@ export const translations = {
     'common.save': 'Kaydet',
     'common.saving': 'Kaydediliyor…',
     'common.back': 'Geri',
-    'common.sessionExpired': 'Oturumunun süresi doldu. Devam etmek için çıkış yapıp tekrar giriş yap.',
+    'common.sessionExpired': 'Oturumunun süresi doldu. Tekrar bağlanmak için şifreni gir.',
+    'session.reconnect': 'Tekrar bağlan',
+    'session.reconnectFailed': 'Bu şifre çalışmadı.',
 
     'connection.line': 'VELIS devam etmek için internet bağlantısı gerektiriyor.',
     'connection.retry': 'Tekrar dene',

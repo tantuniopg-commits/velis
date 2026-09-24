@@ -73,9 +73,23 @@ function isPasswordValid(password) {
   )
 }
 
+// Süre KASITLI OLARAK çok uzun: kullanıcı sadece kendi isteğiyle (Ayarlar >
+// Hesap > Çıkış Yap) çıkış yapmalı, token sessizce arka planda bitmemeli.
+// 7 günlük eski süre "Aysun Yavuz vakası"nın kök sebebiydi: token bitince
+// journey.ts'teki arka plan senkronu (best-effort, hatayı sessizce yutuyor)
+// sürekli başarısız oluyordu - kullanıcı günlerce ritüel yapmaya devam
+// ediyor, cihaz ilerliyor, ama sunucu (ve dolayısıyla leaderboard) eski
+// günde takılı kalıyordu; kullanıcı hiç "oturum bitti" görmüyordu çünkü
+// zaten giriş yapmış görünüyordu. Bu değişiklik SADECE yeni verilen
+// token'ları etkiliyor - halihazırda cihazda duran eski (7 günlük) bir
+// token, süresi dolduğunda yine de bir kerelik bir yeniden-girişe ihtiyaç
+// duyar (bkz. app/SessionExpiredNotice.tsx - ilerlemeyi SİLMEDEN yeniler).
+//
+// NOT: Render'da JWT_EXPIRES_IN ortam değişkeni ayarlıysa bu varsayılanı
+// GEÇERSİZ KILAR - orada da kaldırılmalı/uzatılmalı.
 function signToken(userId) {
   return jwt.sign({ sub: userId }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRES_IN || '7d',
+    expiresIn: process.env.JWT_EXPIRES_IN || '365d',
   })
 }
 
