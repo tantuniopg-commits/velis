@@ -89,7 +89,7 @@ function isPasswordValid(password) {
 // GEÇERSİZ KILAR - orada da kaldırılmalı/uzatılmalı.
 function signToken(userId) {
   return jwt.sign({ sub: userId }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRES_IN || '365d',
+    expiresIn: process.env.JWT_EXPIRES_IN || '20y',
   })
 }
 
