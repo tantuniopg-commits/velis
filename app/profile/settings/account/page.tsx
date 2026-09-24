@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { SettingsShell, SettingsCard, SettingsRow, SANS, cardStyle, labelStyle, fieldInputStyle, saveButtonStyle } from '../shared'
 import type { VelisUser } from '../../../lib/auth'
 import ProfilePhotoEditor from '../../../ProfilePhotoEditor'
+import SessionExpiredNotice from '../../../SessionExpiredNotice'
 import {
   getStoredUser,
   updateUserName,
@@ -147,6 +148,7 @@ export default function AccountSettings() {
 
   const [nameSaving, setNameSaving] = useState(false)
   const [nameError, setNameError] = useState<string | null>(null)
+  const [sessionExpired, setSessionExpired] = useState(false)
 
   const [confirmingLogOut, setConfirmingLogOut] = useState(false)
 
@@ -168,16 +170,22 @@ export default function AccountSettings() {
     setPasswordSaved(false)
     setPasswordError(null)
     setNameError(null)
+    setSessionExpired(false)
   }
 
   const saveName = async () => {
     if (!user || nameSaving) return
     setNameSaving(true)
     setNameError(null)
+    setSessionExpired(false)
     const next = await updateUserName(user, firstName, lastName)
     setNameSaving(false)
     if (next === 'taken') {
       setNameError(t('profile.edit.nameTaken'))
+      return
+    }
+    if (next === 'expired') {
+      setSessionExpired(true)
       return
     }
     if (!next) {
@@ -195,8 +203,13 @@ export default function AccountSettings() {
     if (passwordSaving || !canSubmitPassword) return
     setPasswordSaving(true)
     setPasswordError(null)
+    setSessionExpired(false)
     const ok = await changePasswordService(currentPassword, newPassword, confirmPassword, locale)
     setPasswordSaving(false)
+    if (ok === 'expired') {
+      setSessionExpired(true)
+      return
+    }
     if (!ok) {
       setPasswordError(t('settings.account.saveFailed'))
       return
@@ -270,7 +283,17 @@ export default function AccountSettings() {
               placeholder={t('settings.account.lastNamePlaceholder')}
               style={fieldInputStyle(focused === 'lastName')}
             />
-            {nameError && <p style={{ margin: 0, fontFamily: SANS, fontSize: '12px', color: '#E39C8C' }}>{nameError}</p>}
+            {sessionExpired && user ? (
+              <SessionExpiredNotice
+                user={user}
+                onReconnected={(u) => {
+                  setSessionExpired(false)
+                  setUser(u)
+                }}
+              />
+            ) : (
+              nameError && <p style={{ margin: 0, fontFamily: SANS, fontSize: '12px', color: '#E39C8C' }}>{nameError}</p>
+            )}
             <button onClick={saveName} disabled={nameSaving} style={{ ...saveButtonStyle, opacity: nameSaving ? 0.6 : 1 }}>
               {nameSaving ? t('common.saving') : t('common.save')}
             </button>
@@ -325,7 +348,17 @@ export default function AccountSettings() {
               visible={showConfirmPassword}
               onToggleVisible={() => setShowConfirmPassword((v) => !v)}
             />
-            {passwordError && <p style={{ margin: 0, fontFamily: SANS, fontSize: '12px', color: '#E39C8C' }}>{passwordError}</p>}
+            {sessionExpired && user ? (
+              <SessionExpiredNotice
+                user={user}
+                onReconnected={(u) => {
+                  setSessionExpired(false)
+                  setUser(u)
+                }}
+              />
+            ) : (
+              passwordError && <p style={{ margin: 0, fontFamily: SANS, fontSize: '12px', color: '#E39C8C' }}>{passwordError}</p>
+            )}
             <button
               onClick={changePassword}
               disabled={passwordSaving || !canSubmitPassword}

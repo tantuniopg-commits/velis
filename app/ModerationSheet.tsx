@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import { useLocale } from './contexts/LocaleContext'
 import { SANS, SANS_DISPLAY, saveButtonStyle } from './profile/settings/shared'
+import SessionExpiredNotice from './SessionExpiredNotice'
+import type { VelisUser } from './lib/auth'
 
 // Başka bir kullanıcıyı bildirme / engelleme menüsü - leaderboard'daki kişi
 // ekranının üç nokta düğmesi açıyor (bkz. app/leaderboard/page.tsx). App Store
@@ -47,27 +49,37 @@ const rowStyle = {
 
 export default function ModerationSheet({
   name,
+  user,
   onClose,
   onReport,
   onBlock,
+  onUserChange,
 }: {
   name: string
+  user: VelisUser
   onClose: () => void
-  onReport: () => Promise<boolean>
-  onBlock: () => Promise<boolean>
+  onReport: () => Promise<boolean | 'expired'>
+  onBlock: () => Promise<boolean | 'expired'>
+  onUserChange: (user: VelisUser) => void
 }) {
   const { t } = useLocale()
   const [step, setStep] = useState<Step>('menu')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [sessionExpired, setSessionExpired] = useState(false)
 
-  const run = async (action: () => Promise<boolean>, onOk: () => void) => {
+  const run = async (action: () => Promise<boolean | 'expired'>, onOk: () => void) => {
     if (busy) return
     setBusy(true)
     setError(null)
-    const ok = await action()
+    setSessionExpired(false)
+    const result = await action()
     setBusy(false)
-    if (!ok) {
+    if (result === 'expired') {
+      setSessionExpired(true)
+      return
+    }
+    if (!result) {
       setError(t('mod.error'))
       return
     }
@@ -76,6 +88,7 @@ export default function ModerationSheet({
 
   const back = () => {
     setError(null)
+    setSessionExpired(false)
     setStep('menu')
   }
 
@@ -128,7 +141,17 @@ export default function ModerationSheet({
             <p style={{ margin: 0, fontFamily: SANS, fontSize: '14px', lineHeight: 1.5, color: '#9A948C' }}>
               {step === 'report' ? t('mod.report.body') : t('mod.block.body')}
             </p>
-            {error && <p style={{ margin: 0, fontFamily: SANS, fontSize: '12px', color: '#E39C8C' }}>{error}</p>}
+            {sessionExpired ? (
+              <SessionExpiredNotice
+                user={user}
+                onReconnected={(u) => {
+                  setSessionExpired(false)
+                  onUserChange(u)
+                }}
+              />
+            ) : (
+              error && <p style={{ margin: 0, fontFamily: SANS, fontSize: '12px', color: '#E39C8C' }}>{error}</p>
+            )}
             <div style={{ display: 'flex', gap: '10px', marginTop: '6px' }}>
               <button
                 type="button"

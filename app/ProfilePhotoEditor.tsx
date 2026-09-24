@@ -50,7 +50,9 @@ export default function ProfilePhotoEditor({ user, onUserChange }: { user: Velis
     try {
       const dataUrl = await fileToAvatarDataUrl(file)
       const next = await updateUserAvatar(user, dataUrl)
-      if (!next) {
+      if (next === 'expired') {
+        setError(t('common.sessionExpired'))
+      } else if (!next) {
         setError(t('settings.account.photo.failed'))
       } else {
         onUserChange(next)
@@ -69,6 +71,10 @@ export default function ProfilePhotoEditor({ user, onUserChange }: { user: Velis
     setError(null)
     const next = await removeUserAvatar(user)
     setBusy(false)
+    if (next === 'expired') {
+      setError(t('common.sessionExpired'))
+      return
+    }
     if (!next) {
       setError(t('settings.account.photo.failed'))
       return

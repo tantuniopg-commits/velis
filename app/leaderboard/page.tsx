@@ -320,47 +320,86 @@ export default function Leaderboard() {
   const [canModerate, setCanModerate] = useState(false)
   const [moderationOpen, setModerationOpen] = useState(false)
 
+  // Canlı sıralama: mount'ta bir kere, sonra her LIVE_REFRESH_MS'de bir sessizce
+  // yeniden çekiliyor - kullanıcı ekranda dururken başka birinin ilerlemesi
+  // (streak/XP/fotoğraf) sayfayı yenilemeden görünür oluyor. "you" da her
+  // yenilemede localStorage'dan taze okunuyor (kendi ritüelin anında yansısın).
+  // Sekme/uygulama arka plandayken (bkz. document.visibilityState) istek
+  // atılmıyor - pil ve veri boşa gitmesin. Backend tarafı zaten ucuz: okuma
+  // istekleri genel hız limitinin dışında tutuluyor (bkz. server/src/index.js
+  // isAvatarRead'e benzer şekilde leaderboard herkese açık, token gerekmiyor).
+  const LIVE_REFRESH_MS = 12000
+
   useEffect(() => {
-    const storedUser = getStoredUser()
-    // Engellediği kişiler listede/podyumda hiç görünmüyor.
-    const blocked = storedUser?.blockedUsers ?? []
-    setCanModerate(!!storedUser && !!getStoredToken())
-
     let cancelled = false
-    getLeaderboardRequest()
-      .then((res) => {
-        if (cancelled) return
-        const users: LBUser[] = res.users
-          // Kendi satırımız aşağıda "you" olarak ayrı gösteriliyor - listede
-          // iki kere görünmesin diye backend id'siyle eşleşeni çıkarıyoruz.
-          .filter((u) => u.id !== storedUser?.id && !blocked.includes(u.id))
-          .map((u) => ({
-            id: u.id,
-            firstName: u.name,
-            streakDays: u.stats?.currentStreak ?? 0,
-            totalXP: u.stats?.totalXP ?? 0,
-            quote: 'Keeping the streak alive.',
-            avatarUrl: avatarUrl(u.id, u.avatarVersion),
-          }))
-        setCommunity(users)
-      })
-      .catch(() => setCommunity([]))
+    // İlk yüklemede başarısız olursa liste boş gösterilir (eski davranış);
+    // sonraki periyodik/görünürlük tetiklemeli denemelerde başarısızlık
+    // sessizce yutulur - mevcut liste olduğu gibi kalır, boşaltılmaz.
+    let firstLoad = true
 
-    if (storedUser) {
-      const stats = getStoredStats()
-      setYou({
-        id: storedUser.id ?? 'you',
-        firstName: `${storedUser.firstName} ${storedUser.lastName}`.trim(),
-        streakDays: stats.currentStreak,
-        totalXP: stats.totalXP,
-        quote: 'This is your streak. Keep it going.',
-        isYou: true,
-        avatarUrl: avatarUrl(storedUser.id, storedUser.avatarVersion),
-      })
+    const refresh = () => {
+      const storedUser = getStoredUser()
+      // Engellediği kişiler listede/podyumda hiç görünmüyor.
+      const blocked = storedUser?.blockedUsers ?? []
+      setCanModerate(!!storedUser && !!getStoredToken())
+
+      getLeaderboardRequest()
+        .then((res) => {
+          if (cancelled) return
+          const users: LBUser[] = res.users
+            // Kendi satırımız aşağıda "you" olarak ayrı gösteriliyor - listede
+            // iki kere görünmesin diye backend id'siyle eşleşeni çıkarıyoruz.
+            .filter((u) => u.id !== storedUser?.id && !blocked.includes(u.id))
+            .map((u) => ({
+              id: u.id,
+              firstName: u.name,
+              streakDays: u.stats?.currentStreak ?? 0,
+              totalXP: u.stats?.totalXP ?? 0,
+              quote: 'Keeping the streak alive.',
+              avatarUrl: avatarUrl(u.id, u.avatarVersion),
+            }))
+          setCommunity(users)
+        })
+        .catch(() => {
+          if (!cancelled && firstLoad) setCommunity([])
+        })
+        .finally(() => {
+          firstLoad = false
+        })
+
+      if (storedUser) {
+        const stats = getStoredStats()
+        setYou({
+          id: storedUser.id ?? 'you',
+          firstName: `${storedUser.firstName} ${storedUser.lastName}`.trim(),
+          streakDays: stats.currentStreak,
+          totalXP: stats.totalXP,
+          quote: 'This is your streak. Keep it going.',
+          isYou: true,
+          avatarUrl: avatarUrl(storedUser.id, storedUser.avatarVersion),
+        })
+      }
     }
+
+    refresh()
+    // Canlı sıralama: kullanıcı ekranda dururken başka birinin ilerlemesi
+    // (streak/XP/fotoğraf) sayfayı yenilemeden görünür olsun diye periyodik
+    // olarak (ve sekme/uygulama arka plandan öne dönünce anında) tekrar
+    // çekiliyor. Arka planda İSTEK ATILMIYOR (bkz. document.visibilityState) -
+    // pil/veri boşa gitmesin. Sunucu ucuz: leaderboard herkese açık, token
+    // gerekmiyor, ayrı ve bol bir okuma limiti var (bkz. server/src/index.js).
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === 'visible') refresh()
+    }, LIVE_REFRESH_MS)
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') refresh()
+    }
+    document.addEventListener('visibilitychange', onVisible)
 
     return () => {
       cancelled = true
+      window.clearInterval(interval)
+      document.removeEventListener('visibilitychange', onVisible)
     }
   }, [])
 
@@ -395,11 +434,12 @@ export default function Leaderboard() {
 
   // Engelle: kişi listeden çıkıyor ve ekran HEMEN kapanıyor - kapanış senkron,
   // zamanlayıcı yok (bkz. AGENTS.md: WKWebView zamanlayıcıları erteliyor).
-  const handleBlock = async (): Promise<boolean> => {
+  const handleBlock = async (): Promise<boolean | 'expired'> => {
     const stored = getStoredUser()
     const target = selectedId
     if (!stored || !target) return false
     const next = await blockUser(stored, target)
+    if (next === 'expired') return 'expired'
     if (!next) return false
     setCommunity((prev) => prev.filter((u) => u.id !== target))
     setModerationOpen(false)
@@ -629,12 +669,14 @@ export default function Leaderboard() {
             </button>
           </div>
 
-          {moderationOpen && (
+          {moderationOpen && getStoredUser() && (
             <ModerationSheet
               name={selectedUser.firstName}
+              user={getStoredUser()!}
               onClose={() => setModerationOpen(false)}
               onReport={() => reportUser(selectedUser.id)}
               onBlock={handleBlock}
+              onUserChange={() => {}}
             />
           )}
         </div>

@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import type { KeyboardEvent } from 'react'
 import ProfilePhotoEditor from './ProfilePhotoEditor'
+import SessionExpiredNotice from './SessionExpiredNotice'
 import { updateUserName } from './services/AuthService'
 import type { VelisUser } from './lib/auth'
 import { useLocale } from './contexts/LocaleContext'
@@ -43,6 +44,7 @@ export default function ProfileEditSheet({
   const [focused, setFocused] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [sessionExpired, setSessionExpired] = useState(false)
 
   const changed = firstName.trim() !== user.firstName || lastName.trim() !== user.lastName
   const valid = firstName.trim().length > 0 && lastName.trim().length > 0
@@ -57,10 +59,15 @@ export default function ProfileEditSheet({
     if (!valid) return
     setSaving(true)
     setError(null)
+    setSessionExpired(false)
     const next = await updateUserName(user, firstName, lastName)
     setSaving(false)
     if (next === 'taken') {
       setError(t('profile.edit.nameTaken'))
+      return
+    }
+    if (next === 'expired') {
+      setSessionExpired(true)
       return
     }
     if (!next) {
@@ -150,7 +157,17 @@ export default function ProfileEditSheet({
               enterKeyHint="done"
               style={fieldInputStyle(focused === 'lastName')}
             />
-            {error && <p style={{ margin: 0, fontFamily: SANS, fontSize: '12px', color: '#E39C8C' }}>{error}</p>}
+            {sessionExpired ? (
+              <SessionExpiredNotice
+                user={user}
+                onReconnected={(u) => {
+                  setSessionExpired(false)
+                  onUserChange(u)
+                }}
+              />
+            ) : (
+              error && <p style={{ margin: 0, fontFamily: SANS, fontSize: '12px', color: '#E39C8C' }}>{error}</p>
+            )}
             <button
               type="button"
               onClick={save}
