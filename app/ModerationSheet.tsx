@@ -53,21 +53,25 @@ export default function ModerationSheet({
 }: {
   name: string
   onClose: () => void
-  onReport: () => Promise<boolean>
-  onBlock: () => Promise<boolean>
+  onReport: () => Promise<boolean | 'expired'>
+  onBlock: () => Promise<boolean | 'expired'>
 }) {
   const { t } = useLocale()
   const [step, setStep] = useState<Step>('menu')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const run = async (action: () => Promise<boolean>, onOk: () => void) => {
+  const run = async (action: () => Promise<boolean | 'expired'>, onOk: () => void) => {
     if (busy) return
     setBusy(true)
     setError(null)
-    const ok = await action()
+    const result = await action()
     setBusy(false)
-    if (!ok) {
+    if (result === 'expired') {
+      setError(t('common.sessionExpired'))
+      return
+    }
+    if (!result) {
       setError(t('mod.error'))
       return
     }

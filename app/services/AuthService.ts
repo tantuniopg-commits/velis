@@ -24,6 +24,20 @@ import {
 
 export * from '../lib/auth'
 
+// Sunucu 401 dönerse token süresi dolmuş veya geçersizdir (bkz. server/src/
+// middleware/auth.js) - önceden bu, diğer her hatayla aynı genel "kaydedilemedi"
+// mesajına düşüyordu, kullanıcı gerçek sebebi hiç göremiyordu. Böyle bir hatadan
+// sonra token'ı hemen temizliyoruz: geçersiz bir token'ı elde tutmanın faydası
+// yok, sadece sonraki her isteği aynı şekilde başarısız kılar. Kullanıcı adı ve
+// yerel ilerleme KORUNUYOR (resetDeviceToFirstLaunch'ın aksine) - bu bir çıkış
+// değil, sadece oturumun yenilenmesi (Ayarlar > Hesap > Çıkış Yap, sonra tekrar
+// giriş) gerektiği anlamına geliyor.
+function isSessionExpired(e: unknown): boolean {
+  if (!(e instanceof AuthApiError) || e.status !== 401) return false
+  clearToken()
+  return true
+}
+
 // Bu üç fonksiyon KASITLI OLARAK lib/auth.ts'in doğrudan re-export'unu
 // (yukarıdaki `export *`) gölgeliyor - artık userRepository üzerinden
 // geçiyorlar (bkz. repositories/UserRepository.ts). Dönüş tipleri, arayüzün
@@ -151,7 +165,7 @@ export function createAccount(input: {
 // İsim benzersiz (bkz. server authController isNameTaken): başkası aynı adı
 // kullanıyorsa sunucu 409 dönüyor ve burada 'taken' - çağıran genel "kaydedilemedi"
 // yerine "bu isim alınmış" gösterebilsin. Yine yerel de değiştirilmiyor.
-export async function updateUserName(user: VelisUser, firstName: string, lastName: string): Promise<VelisUser | null | 'taken'> {
+export async function updateUserName(user: VelisUser, firstName: string, lastName: string): Promise<VelisUser | null | 'taken' | 'expired'> {
   if (!firstName.trim() || !lastName.trim()) return null
   const next: VelisUser = { ...user, firstName: firstName.trim(), lastName: lastName.trim() }
   const token = getStoredToken()
@@ -160,6 +174,7 @@ export async function updateUserName(user: VelisUser, firstName: string, lastNam
       await updateProfileRequest(token, `${next.firstName} ${next.lastName}`.trim())
     } catch (e) {
       if (e instanceof AuthApiError && e.status === 409) return 'taken'
+      if (isSessionExpired(e)) return 'expired'
       return null
     }
   }
@@ -172,7 +187,7 @@ export async function updateUserName(user: VelisUser, firstName: string, lastNam
 // "kaydedildi" gösterip DB'de eski kalmasın. Token yoksa (misafir) yüklenecek
 // bir hesap yok, null dönüyor. Fotoğrafın kendisi cihazda tutulmuyor, sadece
 // sürüm numarası (bkz. VelisUser.avatarVersion).
-export async function updateUserAvatar(user: VelisUser, imageDataUrl: string): Promise<VelisUser | null> {
+export async function updateUserAvatar(user: VelisUser, imageDataUrl: string): Promise<VelisUser | null | 'expired'> {
   const token = getStoredToken()
   if (!token) return null
   try {
@@ -180,12 +195,13 @@ export async function updateUserAvatar(user: VelisUser, imageDataUrl: string): P
     const next: VelisUser = { ...user, avatarVersion: res.user.avatarVersion || undefined }
     saveUser(next)
     return next
-  } catch {
+  } catch (e) {
+    if (isSessionExpired(e)) return 'expired'
     return null
   }
 }
 
-export async function removeUserAvatar(user: VelisUser): Promise<VelisUser | null> {
+export async function removeUserAvatar(user: VelisUser): Promise<VelisUser | null | 'expired'> {
   const token = getStoredToken()
   if (!token) return null
   try {
@@ -193,7 +209,8 @@ export async function removeUserAvatar(user: VelisUser): Promise<VelisUser | nul
     const next: VelisUser = { ...user, avatarVersion: undefined }
     saveUser(next)
     return next
-  } catch {
+  } catch (e) {
+    if (isSessionExpired(e)) return 'expired'
     return null
   }
 }
@@ -201,18 +218,19 @@ export async function removeUserAvatar(user: VelisUser): Promise<VelisUser | nul
 // Moderasyon (App Store 1.2). Hepsi sunucu gerektiriyor: token yoksa (misafir)
 // yapılacak bir şey yok, başarısızlık sessizce false/null - çağıran kullanıcıya
 // "tekrar dene" gösteriyor ve yerel durum sunucuyla tutarlı kalıyor.
-export async function reportUser(userId: string): Promise<boolean> {
+export async function reportUser(userId: string): Promise<boolean | 'expired'> {
   const token = getStoredToken()
   if (!token) return false
   try {
     await reportUserRequest(token, userId)
     return true
-  } catch {
+  } catch (e) {
+    if (isSessionExpired(e)) return 'expired'
     return false
   }
 }
 
-export async function blockUser(user: VelisUser, targetId: string): Promise<VelisUser | null> {
+export async function blockUser(user: VelisUser, targetId: string): Promise<VelisUser | null | 'expired'> {
   const token = getStoredToken()
   if (!token) return null
   try {
@@ -220,12 +238,13 @@ export async function blockUser(user: VelisUser, targetId: string): Promise<Veli
     const next: VelisUser = { ...user, blockedUsers: res.blockedUsers }
     saveUser(next)
     return next
-  } catch {
+  } catch (e) {
+    if (isSessionExpired(e)) return 'expired'
     return null
   }
 }
 
-export async function unblockUser(user: VelisUser, targetId: string): Promise<VelisUser | null> {
+export async function unblockUser(user: VelisUser, targetId: string): Promise<VelisUser | null | 'expired'> {
   const token = getStoredToken()
   if (!token) return null
   try {
@@ -233,7 +252,8 @@ export async function unblockUser(user: VelisUser, targetId: string): Promise<Ve
     const next: VelisUser = { ...user, blockedUsers: res.blockedUsers }
     saveUser(next)
     return next
-  } catch {
+  } catch (e) {
+    if (isSessionExpired(e)) return 'expired'
     return null
   }
 }
@@ -248,14 +268,15 @@ export async function changePassword(
   newPassword: string,
   confirmPassword: string,
   locale: string
-): Promise<boolean> {
+): Promise<boolean | 'expired'> {
   if (!isPasswordValid(newPassword) || newPassword !== confirmPassword) return false
   const token = getStoredToken()
   if (!token) return false
   try {
     await changePasswordRequest(token, currentPassword, newPassword, locale)
     return true
-  } catch {
+  } catch (e) {
+    if (isSessionExpired(e)) return 'expired'
     return false
   }
 }

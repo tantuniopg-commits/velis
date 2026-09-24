@@ -63,6 +63,10 @@ export default function ProfileEditSheet({
       setError(t('profile.edit.nameTaken'))
       return
     }
+    if (next === 'expired') {
+      setError(t('common.sessionExpired'))
+      return
+    }
     if (!next) {
       setError(t('settings.account.saveFailed'))
       return

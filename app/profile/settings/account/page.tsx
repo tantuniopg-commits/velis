@@ -180,6 +180,10 @@ export default function AccountSettings() {
       setNameError(t('profile.edit.nameTaken'))
       return
     }
+    if (next === 'expired') {
+      setNameError(t('common.sessionExpired'))
+      return
+    }
     if (!next) {
       setNameError(t('settings.account.saveFailed'))
       return
@@ -197,6 +201,10 @@ export default function AccountSettings() {
     setPasswordError(null)
     const ok = await changePasswordService(currentPassword, newPassword, confirmPassword, locale)
     setPasswordSaving(false)
+    if (ok === 'expired') {
+      setPasswordError(t('common.sessionExpired'))
+      return
+    }
     if (!ok) {
       setPasswordError(t('settings.account.saveFailed'))
       return

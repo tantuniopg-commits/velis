@@ -395,11 +395,12 @@ export default function Leaderboard() {
 
   // Engelle: kişi listeden çıkıyor ve ekran HEMEN kapanıyor - kapanış senkron,
   // zamanlayıcı yok (bkz. AGENTS.md: WKWebView zamanlayıcıları erteliyor).
-  const handleBlock = async (): Promise<boolean> => {
+  const handleBlock = async (): Promise<boolean | 'expired'> => {
     const stored = getStoredUser()
     const target = selectedId
     if (!stored || !target) return false
     const next = await blockUser(stored, target)
+    if (next === 'expired') return 'expired'
     if (!next) return false
     setCommunity((prev) => prev.filter((u) => u.id !== target))
     setModerationOpen(false)

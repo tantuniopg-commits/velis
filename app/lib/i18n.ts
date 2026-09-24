@@ -23,6 +23,7 @@ export const translations = {
     'common.save': 'Save',
     'common.saving': 'Saving…',
     'common.back': 'Back',
+    'common.sessionExpired': 'Your session has expired. Log out and sign in again to continue.',
 
     'connection.line': 'VELIS needs an internet connection to continue.',
     'connection.retry': 'Try again',
@@ -270,6 +271,7 @@ export const translations = {
     'common.save': 'Kaydet',
     'common.saving': 'Kaydediliyor…',
     'common.back': 'Geri',
+    'common.sessionExpired': 'Oturumunun süresi doldu. Devam etmek için çıkış yapıp tekrar giriş yap.',
 
     'connection.line': 'VELIS devam etmek için internet bağlantısı gerektiriyor.',
     'connection.retry': 'Tekrar dene',
