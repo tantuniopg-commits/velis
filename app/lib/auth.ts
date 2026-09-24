@@ -107,6 +107,32 @@ export function saveStats(stats: VelisStats) {
   window.localStorage.setItem(STATS_KEY, JSON.stringify(stats))
 }
 
+// AYNI hesaba giriş yaparken, cihazdaki ilerlemeyi sunucununkiyle KÖRÜ
+// KÖRÜNE değiştirmemek için (bkz. app/profile/page.tsx handleSignIn).
+// Token süresi dolup arka plan senkronları sessizce başarısız olduysa
+// (bkz. lib/journey.ts syncStatsToServer - best-effort, hatayı yutuyor),
+// cihaz sunucudan daha ileride olabilir; o zaman girişte sunucunun eski
+// verisiyle üzerine yazmak, kullanıcının günlerce fark etmediği ilerlemesini
+// SİLERDİ. Birikimli sayaçlarda ikisinin büyüğü alınıyor; seri/zaman damgası
+// gibi "sıfırlanabilir" alanlarda ise hangi taraf genel olarak daha ileride
+// görünüyorsa (totalXP'si büyük olan) onunki kullanılıyor.
+//
+// FARKLI bir hesaba giriş yapılıyorsa bu fonksiyon HİÇ çağrılmamalı - o
+// zaman cihazdaki veri önceki (başka) hesaba ait, doğrudan sunucununkiyle
+// değiştirilmeli (bkz. çağıran taraftaki e-posta/id karşılaştırması).
+export function mergeStatsPreferringMoreAdvanced(local: VelisStats, server: VelisStats): VelisStats {
+  const localIsFurtherAlong = local.totalXP >= server.totalXP
+  return {
+    journeyDay: Math.max(local.journeyDay, server.journeyDay),
+    totalXP: Math.max(local.totalXP, server.totalXP),
+    totalRitualCount: Math.max(local.totalRitualCount, server.totalRitualCount),
+    totalRitualTimeSec: Math.max(local.totalRitualTimeSec, server.totalRitualTimeSec),
+    currentStreak: localIsFurtherAlong ? local.currentStreak : server.currentStreak,
+    journeyTimestamp:
+      (local.journeyTimestamp ?? -1) >= (server.journeyTimestamp ?? -1) ? local.journeyTimestamp : server.journeyTimestamp,
+  }
+}
+
 // Developer Panel'in Reset bölümü için (bkz. devpanel/sections/Reset).
 export function clearStats() {
   if (typeof window === 'undefined') return
