@@ -6,6 +6,7 @@ const {
   login,
   me,
   updateStats,
+  adminSetStats,
   updateProfile,
   updatePreferences,
   updatePassword,
@@ -55,5 +56,9 @@ router.get('/users', requireAdmin, asyncHandler(listUsers))
 // Yönetici moderasyonu: bildirim listesi + uygunsuz fotoğrafı silme.
 router.get('/reports', requireAdmin, asyncHandler(listReports))
 router.delete('/users/:id/avatar', requireAdmin, asyncHandler(adminRemoveAvatar))
+// Senkron koptuğunda (ör. token süresi dolup ritüel senkronları sessizce
+// başarısız olmuşsa) bir hesabın cihazdaki gerçek ilerlemesini elle
+// yazabilmek için - bkz. authController.js adminSetStats.
+router.patch('/users/:id/stats', requireAdmin, asyncHandler(adminSetStats))
 
 module.exports = router
