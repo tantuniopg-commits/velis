@@ -5,9 +5,16 @@ import type { ChangeEvent, KeyboardEvent, ReactNode, RefObject } from 'react'
 import VelisMark from '../VelisMark'
 import AvatarPhoto from '../AvatarPhoto'
 import ProfileEditSheet from '../ProfileEditSheet'
-import { getStoredStats, saveStats, getStoredToken, ZERO_STATS as ZERO_VELIS_STATS } from '../lib/auth'
+import {
+  getStoredStats,
+  saveStats,
+  getStoredToken,
+  ZERO_STATS as ZERO_VELIS_STATS,
+  mergeStatsPreferringMoreAdvanced,
+} from '../lib/auth'
 import type { VelisUser, VelisStats } from '../lib/auth'
 import { getStoredSettings } from '../lib/settings'
+import { syncStatsToServer } from '../lib/journey'
 import { getStoredUser, validateSignupForm, createAccount, saveToken, getPasswordRuleStatus, isAdminUser } from '../services/AuthService'
 import type { PasswordRuleId } from '../services/AuthService'
 import { registerRequest, loginRequest, AuthApiError, checkEmailAvailableRequest, updatePreferencesRequest, avatarUrl } from '../lib/authApi'
@@ -733,14 +740,30 @@ export default function Profile() {
     setAuthError(null)
     setSubmitting(true)
     try {
+      // Bu hesaba daha önce bu cihazda girilmiş miydi - login çağrısından ve
+      // createAccount'un mevcut kaydı değiştirmesinden ÖNCE bakılıyor.
+      const previouslyStoredUser = getStoredUser()
       const result = await loginRequest(email.trim(), password)
       saveToken(result.token)
-      // Sunucudaki ilerleme bu cihazın yerel durumunun TEK kaynağı - "kaldığın
-      // yerden devam" bunun sayesinde, hangi cihazdan girilirse girilsin.
-      // HER ZAMAN sunucudan yazıyoruz (yoksa sıfır): aksi halde aynı cihazda
-      // başka bir hesaba giriş yapınca, o hesabın sunucu ilerlemesi boşsa
-      // önceki hesabın yerel gün/XP'si olduğu gibi kalıyordu.
-      saveStats(result.user.stats ?? ZERO_VELIS_STATS)
+      const serverStats = result.user.stats ?? ZERO_VELIS_STATS
+      const isSameAccountReLogin =
+        !!previouslyStoredUser &&
+        (previouslyStoredUser.id === result.user.id ||
+          previouslyStoredUser.email.toLowerCase() === result.user.email.toLowerCase())
+      // AYNI hesaba tekrar giriş: cihaz sunucudan daha ileride olabilir (ör.
+      // token süresi dolup arka plan senkronları sessizce başarısız olmuşsa -
+      // bkz. mergeStatsPreferringMoreAdvanced) - körü körüne ezmek yerine
+      // ikisinin daha ilerisini koruyoruz.
+      //
+      // FARKLI bir hesaba (ya da misafirken bir hesaba) giriş: cihazdaki veri
+      // bu hesaba ait DEĞİL - eskisi gibi doğrudan sunucununkiyle değiştiriyoruz,
+      // aksi halde önceki hesabın/misafirin ilerlemesi bu hesaba karışırdı.
+      const mergedStats = isSameAccountReLogin ? mergeStatsPreferringMoreAdvanced(getStoredStats(), serverStats) : serverStats
+      saveStats(mergedStats)
+      // Birleştirme cihazı öne çıkardıysa (token ölüyken biriken ilerleme gibi)
+      // sunucuyu HEMEN güncelle - kullanıcı bir ritüel daha yapana kadar
+      // beklemesin, giriş tek başına yeterli olsun.
+      if (mergedStats.totalXP > serverStats.totalXP) syncStatsToServer(mergedStats)
       const { firstName: fn, lastName: ln } = splitName(result.user.name)
       finishAuth(
         createAccount({

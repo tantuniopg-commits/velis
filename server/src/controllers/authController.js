@@ -305,6 +305,36 @@ async function updateStats(req, res) {
   res.json({ user: toPublicUser(user) })
 }
 
+// Yönetici veri düzeltmesi - bkz. devpanel/sections/UserDatabase.tsx
+// "Fix stats" formu. updateStats'taki artış-tutarlılığı (anti-cheat)
+// kontrollerini BİLEREK atlıyor - amacı tam olarak senkronun koptuğu
+// istisnai durumlarda (ör. token süresi dolup ritüel senkronları sessizce
+// başarısız olmuşsa) bir hesabın cihazdaki GERÇEK ilerlemesini sunucuya
+// elle yazabilmek. Sadece requireAdmin ile erişilebiliyor; yine de mutlak
+// tavanlara (pickStats -> STATS_CEIL) kırpılıyor.
+async function adminSetStats(req, res) {
+  const id = String(req.params.id || '')
+  if (!OBJECT_ID_RE.test(id)) return res.status(400).json({ error: 'A valid user id is required' })
+  const incoming = pickStats(req.body?.stats)
+  if (!incoming) return res.status(400).json({ error: 'stats is required' })
+
+  const user = await User.findById(id)
+  if (!user) return res.status(404).json({ error: 'User not found' })
+  const cur = user.stats || {}
+  const n = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : 0)
+
+  user.stats = {
+    journeyDay: 'journeyDay' in incoming ? incoming.journeyDay : n(cur.journeyDay),
+    currentStreak: 'currentStreak' in incoming ? incoming.currentStreak : n(cur.currentStreak),
+    journeyTimestamp: 'journeyTimestamp' in incoming ? incoming.journeyTimestamp : (cur.journeyTimestamp ?? null),
+    totalXP: 'totalXP' in incoming ? incoming.totalXP : n(cur.totalXP),
+    totalRitualCount: 'totalRitualCount' in incoming ? incoming.totalRitualCount : n(cur.totalRitualCount),
+    totalRitualTimeSec: 'totalRitualTimeSec' in incoming ? incoming.totalRitualTimeSec : n(cur.totalRitualTimeSec),
+  }
+  await user.save()
+  res.json({ user: toPublicUser(user) })
+}
+
 // Hesap Ayarları > İsmi Düzenle (bkz. app/profile/settings/account/page.tsx).
 async function updateProfile(req, res) {
   const name = normalizeName(req.body?.name)
@@ -534,6 +564,7 @@ module.exports = {
   login,
   me,
   updateStats,
+  adminSetStats,
   updateProfile,
   updatePreferences,
   updatePassword,

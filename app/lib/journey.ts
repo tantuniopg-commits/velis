@@ -9,7 +9,10 @@ import { updateStatsRequest } from './authApi'
 // bu hesaba girildiğinde "kaldığı yerden devam" bunun sayesinde çalışıyor.
 // Best-effort: başarısız olursa sessizce yutuluyor, yerel ilerleme buna
 // bağlı değil (bkz. updateStatsRequest'in kendi yorumu).
-function syncStatsToServer(stats: VelisStats) {
+// Login sonrası (bkz. app/profile/page.tsx handleSignIn) cihaz-sunucu
+// birleştirmesi cihazı öne çıkarırsa, sunucuyu hemen güncellemek için de
+// dışa açılıyor - kullanıcı bir ritüel daha yapana kadar beklemesin.
+export function syncStatsToServer(stats: VelisStats) {
   const token = getStoredToken()
   if (!token) return
   updateStatsRequest(token, stats).catch(() => {})

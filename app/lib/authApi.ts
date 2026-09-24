@@ -230,6 +230,14 @@ export function getUsersRequest(token: string) {
   return request<AuthApiUsersResult>('GET', '/api/auth/users', undefined, token)
 }
 
+// Senkron koptuğunda (ör. token süresi dolup ritüel senkronları sessizce
+// başarısız olmuşsa) bir hesabın cihazdaki gerçek ilerlemesini elle
+// sunucuya yazmak için - bkz. server/src/controllers/authController.js
+// adminSetStats, devpanel/sections/UserDatabase.tsx.
+export function adminSetStatsRequest(token: string, userId: string, stats: Partial<VelisStats>) {
+  return request<AuthApiUserResult>('PATCH', `/api/auth/users/${encodeURIComponent(userId)}/stats`, { stats }, token)
+}
+
 export type AuthApiAvailabilityResult = { available: boolean }
 
 // Hesap oluşturma formunda email/telefon alanından çıkılınca ERKEN uyarı
