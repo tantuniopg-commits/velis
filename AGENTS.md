@@ -54,26 +54,65 @@ guard deseni kullanılıyor (bkz. `app/WelcomeScreen.tsx`,
 `app/guide/GuideOverlay.tsx`). Yeni bir onboarding/geçiş ekranı eklerken bu
 deseni koru.
 
-## Durum (2026-09-18)
+## Durum (2026-09-29)
 
-- App Store'da **yayında ve onaylı**. Aktif geliştirme yok, ekip şu an
-  **marketing** odaklı (Instagram/LinkedIn).
-- Bir sonraki kod turu **~2026-09-30 civarı** başlayacak — kaynak: kişisel
-  Excel backlog'u + zaten bilinen bekleyenler (aşağıda).
+- App Store'da **yayında ve onaylı**, ama kod turu **2026-09-18'de tekrar
+  başladı** ve devam ediyor — Velis 1.1 hazırlığı sürüyor. Aşağıdaki "1.1'de
+  eklenenler" henüz App Store'a yüklenmedi (bkz. Sürüm numaraları).
 - Güvenlik sertleştirme (helmet, rate-limit, mongo-sanitize, admin gate,
   stats anti-cheat) yapıldı ve prod'da; SendGrid + MongoDB şifreleri
   rotate edildi.
 
+## 1.1'de eklenenler (main'de, App Store'a henüz yüklenmedi)
+
+- **Profil fotoğrafı**: Profil sayfasında (sol üst kalem) ve Ayarlar >
+  Hesap'ta ekle/değiştir/kaldır. İstemci 320x320 JPEG'e kırpıp küçültüyor,
+  sunucu MongoDB'de saklıyor (`User.avatarData`, `select:false`). Profil
+  başlığında ve tüm leaderboard'da görünüyor.
+- **Moderasyon (App Store 1.2 gereği)**: leaderboard'daki bir kullanıcıyı
+  bildirme/engelleme (bkz. `server/src/controllers/moderationController.js`,
+  `app/ModerationSheet.tsx`). Bir fotoğraf 3 farklı kişiden bildirim alınca
+  otomatik gizleniyor; bildirimler `MODERATION_EMAIL`'e (yoksa
+  contact@forsvelis.com) anında e-postalanıyor. Gizlilik Politikası ve
+  Kullanım Şartları buna göre güncellendi.
+- **Görünen ad artık benzersiz** (büyük/küçük harf ve fazla boşluk
+  yok sayılarak karşılaştırılıyor) — leaderboard'da kimlik taklidini önlemek
+  için (bkz. `authController.js` `isNameTaken`).
+- **"Aysun Yavuz" senkron hatası düzeltildi**: JWT süresi 7 günden 1 yıla
+  çıkarıldı (`authController.js` `signToken`); token süresi dolunca artık
+  sessizce başarısız olmuyor — ilgili ekranda şifre isteyip **yerel
+  ilerlemeyi silmeden** yeniden bağlanan bir akış var
+  (`app/SessionExpiredNotice.tsx`, `AuthService.reauthenticate`,
+  `mergeStatsPreferringMoreAdvanced`). Kök sebep: token bitince arka plan
+  senkronu (`journey.ts` `syncStatsToServer`, best-effort) sessizce
+  başarısız oluyordu — cihaz ilerliyor, sunucu/leaderboard eski günde donuk
+  kalıyordu.
+- **Leaderboard canlı**: ekran açıkken 12 saniyede bir kendiliğinden
+  yenileniyor, uygulama öne dönünce anında (bkz. `app/leaderboard/page.tsx`).
+  Kendi satırın artık gerçek sırandaki yerinde (eskiden her zaman en altta
+  sabitti).
+
+## Sürüm numaraları — TUTARSIZ, 1.1 öncesi netleştirilmeli
+
+- iOS gerçek build: `MARKETING_VERSION 1.0`, `CURRENT_PROJECT_VERSION 6`
+  (bkz. `ios/App/App.xcodeproj/project.pbxproj`).
+- Uygulama içi "Hakkında" ekranı (`app/constants/version.ts`): hâlâ
+  `0.1 Alpha`, Build `1` — App Store'daki gerçek build ile UYUŞMUYOR,
+  unutulmuş görünüyor.
+- `package.json` version: `0.1.0` (Next.js projesinin kendi meta verisi,
+  App Store'a yansımıyor, düşük öncelik).
+
 ## Bilinen bekleyen işler (backlog)
 
-- Token süresi dolunca gerçek hatayı göster / login'e yönlendir (şu an
-  genel "couldn't save" hatası veriyor — bkz. `app/devpanel/sections/UserDatabase.tsx`,
-  `app/lib/authApi.ts`)
 - TR App Store lokalizasyonu (şu an sadece İngilizce liste)
 - iPad desteği + testi (şu an iPhone-only, `TARGETED_DEVICE_FAMILY=1`)
 - Leaderboard/istatistik doğrulamasını tamamen sunucu tarafına taşımak
   (şu an client hesaplıyor, sunucu sadece mantık dışı sıçramaları reddediyor)
 - Atlas otomatik yedekleme (M0'da yok), Render + Atlas harcama uyarıları
+- App Store Connect → App Privacy'ye "Fotoğraflar" veri türünün eklenmesi
+  (kod tarafı hazır, panel işlemi bekliyor)
+- `server/`de nodemailer 9.1.1 → 10.x güvenlik güncellemesi (moderate,
+  kırıcı değişiklik — mail gönderimi test edilmeden yükseltilmedi)
 
 ## Çalışma tarzı notu
 
