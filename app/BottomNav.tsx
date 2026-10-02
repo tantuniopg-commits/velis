@@ -9,7 +9,7 @@ const SANS = '"SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif'
 export type TabKey = 'journey' | 'ritual' | 'leaderboard' | 'profile'
 
 function NavIcon({ kind }: { kind: TabKey }) {
-  const common = { width: 22, height: 22, viewBox: '0 0 24 24', fill: 'none' as const }
+  const common = { width: 19, height: 19, viewBox: '0 0 24 24', fill: 'none' as const }
   if (kind === 'journey') {
     return (
       <svg {...common}>
@@ -102,13 +102,26 @@ export default function BottomNav({
         display: 'flex',
         justifyContent: 'space-around',
         alignItems: 'center',
-        padding: '14px 12px calc(14px + env(safe-area-inset-bottom))',
+        padding: '8px 12px calc(8px + env(safe-area-inset-bottom))',
         background: 'rgba(5, 5, 5, 0.86)',
         backdropFilter: 'blur(20px)',
-        borderTop: '1px solid rgba(255, 255, 255, 0.06)',
         zIndex: 10,
       }}
     >
+      {/* Sert bir üst çizgi yerine yumuşak geçiş: kayan içerik menünün
+          altına girerken kesilmiş gibi değil, yavaşça kararıyormuş gibi görünsün. */}
+      <div
+        aria-hidden
+        style={{
+          position: 'absolute',
+          left: 0,
+          right: 0,
+          bottom: '100%',
+          height: '28px',
+          background: 'linear-gradient(to bottom, rgba(5, 5, 5, 0), rgba(5, 5, 5, 0.86))',
+          pointerEvents: 'none',
+        }}
+      />
       {TABS.map((tab) => {
         const href = mounted && resolveHref ? resolveHref(tab.key) : tab.href
         const gated = !effectiveUnlocked && tab.key !== 'profile'
@@ -133,8 +146,8 @@ export default function BottomNav({
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
-              gap: '4px',
-              padding: '4px 10px',
+              gap: '2px',
+              padding: '3px 10px',
               color: highlighted ? '#E3C08C' : 'rgba(255, 255, 255, 0.28)',
               cursor: clickable ? 'pointer' : 'default',
               opacity: gated ? 0.55 : 1,
@@ -144,8 +157,8 @@ export default function BottomNav({
             <div
               className={ctaPulse ? 'velis-nav-cta--pulse' : undefined}
               style={{
-                width: '30px',
-                height: '30px',
+                width: '26px',
+                height: '26px',
                 borderRadius: '50%',
                 display: 'flex',
                 alignItems: 'center',
@@ -157,7 +170,7 @@ export default function BottomNav({
             >
               <NavIcon kind={tab.key} />
             </div>
-            <span style={{ fontFamily: SANS, fontWeight: 500, fontSize: '10px', letterSpacing: '0.2px' }}>
+            <span style={{ fontFamily: SANS, fontWeight: 500, fontSize: '9.5px', letterSpacing: '0.2px' }}>
               {t(`nav.${tab.key}`)}
             </span>
           </button>

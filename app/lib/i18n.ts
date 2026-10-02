@@ -50,6 +50,10 @@ export const translations = {
     'journey.subtitle': 'One choice at a time.',
     'journey.day': 'Day',
     'journey.nextDay.label': 'Next Journey Day',
+    'journey.toArchive': 'Go to your ritual archive',
+    'archive.title': 'Ritual Archive',
+    'archive.prevMonth': 'Previous month',
+    'archive.nextMonth': 'Next month',
     'journey.nextDay.availableIn': 'Available in',
 
     'leaderboard.title': 'Leaderboard',
@@ -348,6 +352,10 @@ export const translations = {
     'journey.subtitle': 'Bir seçim, bir seferde.',
     'journey.day': 'Gün',
     'journey.nextDay.label': 'Sıradaki Yolculuk Günü',
+    'journey.toArchive': 'Ritüel arşivine git',
+    'archive.title': 'Ritüel Arşivi',
+    'archive.prevMonth': 'Önceki ay',
+    'archive.nextMonth': 'Sonraki ay',
     'journey.nextDay.availableIn': 'Kalan süre',
 
     'leaderboard.title': 'Liderlik Tablosu',

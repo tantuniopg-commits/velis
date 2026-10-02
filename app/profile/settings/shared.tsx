@@ -118,7 +118,7 @@ export function SettingsShell({
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        padding: '56px 20px 0',
+        padding: 'max(56px, calc(env(safe-area-inset-top) + 16px)) 20px 0',
       }}
     >
       <div style={{ width: '100%', maxWidth: '380px', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
