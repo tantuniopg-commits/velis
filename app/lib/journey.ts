@@ -3,7 +3,6 @@ import { getStoredStats, saveStats, getStoredToken } from './auth'
 import type { VelisStats } from './auth'
 import { getDevCooldownOverrideMs } from './devCooldown'
 import { updateStatsRequest } from './authApi'
-import { rearmRitualReminders, notifyMilestoneIfReached } from '../services/notifications'
 
 // Gerçek bir hesapla giriş yapılmışsa (bkz. lib/authApi.ts, token varlığı),
 // en güncel ilerlemeyi sunucuya da yazıyoruz - başka bir cihaz/tarayıcıdan
@@ -121,17 +120,13 @@ export function completeRitual(durationSec: number, bonusXP: number = 0): VelisS
 
   const next: VelisStats = { journeyDay, currentStreak, journeyTimestamp, totalXP, totalRitualCount, totalRitualTimeSec }
   saveStats(next)
+  // syncStatsToServer burada senkronladığı `next.currentStreak`/journeyTimestamp
+  // sunucudaki push job'ının (bkz. server/src/jobs/pushReminderJob.js) tek
+  // bilgi kaynağı - ritüel hatırlatması/kilometre taşı bildirimleri ARTIK
+  // istemci tarafında tetiklenmiyor, sunucu kendi sabit programında (09:00/
+  // 15:00/21:00 TR saati) bu alanlara bakarak karar veriyor (bkz. AGENTS.md
+  // "Bildirimler").
   syncStatsToServer(next)
-
-  // Bildirimler (bkz. app/services/notifications) - best-effort, native
-  // platform dışında veya izin yokken no-op. Ritüel az önce tamamlandığı
-  // için bugünkü hatırlatma gereksiz - bir sonraki güne kurulur. Kilometre
-  // taşı SADECE gün gerçekten ilerlediyse (current.currentStreak'ten
-  // next.currentStreak'e) kontrol edilir, erken tekrarlarda tetiklenmez.
-  rearmRitualReminders().catch(() => {})
-  if (journeyTimestamp !== current.journeyTimestamp) {
-    notifyMilestoneIfReached(current.currentStreak, next.currentStreak).catch(() => {})
-  }
 
   return next
 }

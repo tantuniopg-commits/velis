@@ -63,6 +63,17 @@ const userSchema = new mongoose.Schema(
     // için aynı mantığın ayrı bir bayrağı.
     lastCooldownReminderFor: { type: Number, default: null },
     lastReadyReminderFor: { type: Number, default: null },
+    // Native push bildirimleri (Faz 2, bkz. jobs/pushReminderJob.js) -
+    // istemci "Evet, hatırlat" deyip sistem izni verince APNs/FCM device
+    // token'ını buraya kaydediyor (bkz. authController.js updatePreferences).
+    // select:false - normal User sorgularında (login/me/leaderboard) gereksiz
+    // yere dönmesin, sadece push job'ı `+pushToken` ile açıkça istiyor.
+    pushToken: { type: String, default: null, select: false },
+    notificationsEnabled: { type: Boolean, default: false },
+    // En son bildirim gönderilen kilometre taşı (gün sayısı) - aynı gün
+    // içinde job 3 kez çalıştığı için (09/15/21) aynı taşın tekrar tekrar
+    // gönderilmesini önlüyor.
+    lastMilestoneNotified: { type: Number, default: 0 },
   },
   { timestamps: true }
 )

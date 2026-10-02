@@ -355,7 +355,7 @@ async function updateProfile(req, res) {
 // öğreniyor - token gerektirmeyen bir arka plan işi olduğu için bu bilgi
 // önceden senkron edilmiş olmalı.
 async function updatePreferences(req, res) {
-  const { notificationPrefs, locale } = req.body || {}
+  const { notificationPrefs, locale, pushToken, notificationsEnabled } = req.body || {}
   const update = {}
   if (notificationPrefs && typeof notificationPrefs === 'object') {
     if ('dailyRitualReminder' in notificationPrefs) {
@@ -363,6 +363,13 @@ async function updatePreferences(req, res) {
     }
   }
   if (locale === 'en' || locale === 'tr') update.locale = locale
+  // Native push (Faz 2, bkz. jobs/pushReminderJob.js) - istemci soft-ask'ta
+  // "Evet" deyip sistem izni alınca device token'ı buraya yazıyor.
+  // notificationsEnabled:false (Ayarlar'dan kapatma) token'ı SİLMİYOR, sadece
+  // job'ın bu kullanıcıyı atlamasını sağlıyor - tekrar açılırsa aynı token
+  // hâlâ geçerliyse anında çalışmaya devam eder.
+  if (typeof pushToken === 'string' && pushToken.length > 0) update.pushToken = pushToken
+  if (typeof notificationsEnabled === 'boolean') update.notificationsEnabled = notificationsEnabled
 
   const user = await User.findByIdAndUpdate(req.userId, { $set: update }, { new: true })
   if (!user) return res.status(404).json({ error: 'User not found' })

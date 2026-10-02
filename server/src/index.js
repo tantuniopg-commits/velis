@@ -8,6 +8,7 @@ const connectDB = require('./config/db')
 const authRoutes = require('./routes/authRoutes')
 const otpRoutes = require('./routes/otpRoutes')
 const { startCooldownReminderJob } = require('./jobs/cooldownReminder')
+const { startPushReminderJob } = require('./jobs/pushReminderJob')
 
 const isProd = process.env.NODE_ENV === 'production'
 
@@ -196,6 +197,7 @@ connectDB()
   .then(() => {
     app.listen(port, () => console.log(`Auth server listening on port ${port}`))
     startCooldownReminderJob()
+    startPushReminderJob()
   })
   .catch((err) => {
     console.error('Failed to connect to MongoDB', err)
