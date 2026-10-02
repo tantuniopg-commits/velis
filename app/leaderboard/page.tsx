@@ -1,10 +1,12 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import type { ReactNode } from 'react'
 import { getStoredUser, reportUser, blockUser } from '../services/AuthService'
 import { getStoredStats, getStoredToken } from '../lib/auth'
 import ModerationSheet from '../ModerationSheet'
-import { getLeaderboardRequest, avatarUrl } from '../lib/authApi'
+import { getLeaderboardRequest, avatarUrl, storyUrl } from '../lib/authApi'
+import StoryViewer from '../story/StoryViewer'
 import AvatarPhoto from '../AvatarPhoto'
 import { buildRanking, getRankOf, formatMetricValue } from '../services/LeaderboardService'
 import type { LBUser, Metric } from '../services/LeaderboardService'
@@ -201,6 +203,17 @@ function Avatar({ name, size, ring, photoUrl }: { name: string; size: number; ri
   )
 }
 
+// Son 24 saatte hikaye paylaşan kullanıcının avatarı etrafındaki amber halka
+// (hikaye şeridindekiyle aynı) - profiline dokununca hikayesini görebiliyorsun.
+function StoryRing({ active, children }: { active: boolean; children: ReactNode }) {
+  if (!active) return <>{children}</>
+  return (
+    <div style={{ padding: '2px', borderRadius: '50%', background: 'conic-gradient(from 200deg, #F0921F, #FFD9A0, #E3C08C, #F0921F)', flexShrink: 0 }}>
+      <div style={{ padding: '2px', borderRadius: '50%', background: '#050505' }}>{children}</div>
+    </div>
+  )
+}
+
 function PodiumSlot({
   user,
   rank,
@@ -234,7 +247,9 @@ function PodiumSlot({
     >
       <div style={{ position: 'relative' }}>
         {rank === 1 ? <CrownIcon /> : <RankBadge rank={rank} />}
-        <Avatar name={user.firstName} size={size} ring={rank === 1 ? 'amber' : 'thin'} photoUrl={user.avatarUrl} />
+        <StoryRing active={!!user.storyUrl}>
+          <Avatar name={user.firstName} size={size} ring={rank === 1 ? 'amber' : 'thin'} photoUrl={user.avatarUrl} />
+        </StoryRing>
       </div>
       <div
         style={{
@@ -274,7 +289,9 @@ function ListRow({ user, rank, metric, youLabel, onOpen }: { user: LBUser; rank:
       <div style={{ width: '22px', fontFamily: FONT_SANS, fontWeight: 600, fontSize: '13px', color: highlighted ? '#E3C08C' : 'rgba(255, 255, 255, 0.4)' }}>
         {rank}
       </div>
-      <Avatar name={user.firstName} size={38} ring={highlighted ? 'amber' : 'thin'} photoUrl={user.avatarUrl} />
+      <StoryRing active={!!user.storyUrl}>
+        <Avatar name={user.firstName} size={38} ring={highlighted ? 'amber' : 'thin'} photoUrl={user.avatarUrl} />
+      </StoryRing>
       <div style={{ flex: 1, fontFamily: FONT_SANS, fontWeight: highlighted ? 600 : 500, fontSize: '14px', color: '#F5F0EA', textAlign: 'left' }}>
         {highlighted ? youLabel : user.firstName}
       </div>
@@ -319,6 +336,10 @@ export default function Leaderboard() {
   // token istiyor. Menü ModerationSheet'te.
   const [canModerate, setCanModerate] = useState(false)
   const [moderationOpen, setModerationOpen] = useState(false)
+  // Kendi hikayemiz - "you" satırı localStorage'dan kuruluyor, hikaye sürümü
+  // ise sunucudaki listeden (kendi id'mizle eşleşen satır) geliyor.
+  const [myStoryUrl, setMyStoryUrl] = useState<string | undefined>(undefined)
+  const [storyUserId, setStoryUserId] = useState<string | null>(null)
 
   // Canlı sıralama: mount'ta bir kere, sonra her LIVE_REFRESH_MS'de bir sessizce
   // yeniden çekiliyor - kullanıcı ekranda dururken başka birinin ilerlemesi
@@ -346,6 +367,8 @@ export default function Leaderboard() {
       getLeaderboardRequest()
         .then((res) => {
           if (cancelled) return
+          const mine = res.users.find((u) => u.id === storedUser?.id)
+          setMyStoryUrl(storyUrl(mine?.id, mine?.storyVersion))
           const users: LBUser[] = res.users
             // Kendi satırımız aşağıda "you" olarak ayrı gösteriliyor - listede
             // iki kere görünmesin diye backend id'siyle eşleşeni çıkarıyoruz.
@@ -357,6 +380,7 @@ export default function Leaderboard() {
               totalXP: u.stats?.totalXP ?? 0,
               quote: 'Keeping the streak alive.',
               avatarUrl: avatarUrl(u.id, u.avatarVersion),
+              storyUrl: storyUrl(u.id, u.storyVersion),
             }))
           setCommunity(users)
         })
@@ -416,9 +440,14 @@ export default function Leaderboard() {
     return () => cancelAnimationFrame(raf)
   }, [displayMetric])
 
-  const { top3, rest } = buildRanking(community, you, displayMetric)
+  const youWithStory = you ? { ...you, storyUrl: myStoryUrl } : null
+  const { top3, rest } = buildRanking(community, youWithStory, displayMetric)
 
-  const allUsers = you ? [...community, you] : community
+  const allUsers = youWithStory ? [...community, youWithStory] : community
+  // Hikaye şeridi: önce kendi hikayen, sonra en yeniler değil sıralamadaki
+  // sırayla (podyum + liste) - herkes aynı düzeni görüyor.
+  const storyUsers = [...top3, ...rest].filter((u) => u.storyUrl)
+  const storyUser = storyUserId ? allUsers.find((u) => u.id === storyUserId && u.storyUrl) ?? null : null
   const selectedUser = selectedId ? allUsers.find((u) => u.id === selectedId) ?? null : null
   const selectedRank = selectedUser ? getRankOf(selectedUser.id, community, you, displayMetric) : null
 
@@ -442,9 +471,24 @@ export default function Leaderboard() {
     if (next === 'expired') return 'expired'
     if (!next) return false
     setCommunity((prev) => prev.filter((u) => u.id !== target))
+    setStoryUserId(null)
     setModerationOpen(false)
     setSelectedId(null)
     setOverlayVisible(false)
+    return true
+  }
+
+  // Hikaye ekranından engelleme - kişi listeden ve şeritten çıkıyor, ekran
+  // senkron kapanıyor.
+  const handleBlockFromStory = async (): Promise<boolean | 'expired'> => {
+    const stored = getStoredUser()
+    const target = storyUserId
+    if (!stored || !target) return false
+    const next = await blockUser(stored, target)
+    if (next === 'expired') return 'expired'
+    if (!next) return false
+    setCommunity((prev) => prev.filter((u) => u.id !== target))
+    setStoryUserId(null)
     return true
   }
 
@@ -486,6 +530,46 @@ export default function Leaderboard() {
         <br />
         {t('leaderboard.subtitle2')}
       </p>
+
+      {storyUsers.length > 0 && (
+        <div style={{ marginTop: '24px', width: '100%', maxWidth: '560px' }}>
+          <div style={{ ...labelStyle('#9A948C'), padding: '0 4px' }}>{t('leaderboard.stories')}</div>
+          <div style={{ marginTop: '12px', display: 'flex', gap: '14px', overflowX: 'auto', padding: '2px 4px 6px' }}>
+            {storyUsers.map((u) => (
+              <button
+                key={u.id}
+                onClick={() => setStoryUserId(u.id)}
+                style={{ flexShrink: 0, width: '68px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+              >
+                <div
+                  style={{
+                    padding: '2px',
+                    borderRadius: '50%',
+                    background: 'conic-gradient(from 200deg, #F0921F, #FFD9A0, #E3C08C, #F0921F)',
+                  }}
+                >
+                  <div style={{ padding: '2px', borderRadius: '50%', background: '#050505' }}>
+                    <Avatar name={u.firstName} size={56} ring="none" photoUrl={u.avatarUrl} />
+                  </div>
+                </div>
+                <span
+                  style={{
+                    maxWidth: '68px',
+                    fontFamily: FONT_SANS,
+                    fontSize: '12px',
+                    color: '#D9D3CB',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {u.isYou ? t('leaderboard.you') : u.firstName}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div style={{ marginTop: '28px', width: '100%', maxWidth: '400px', display: 'flex', gap: '10px' }}>
         {(['streak', 'xp'] as Metric[]).map((m) => (
@@ -579,7 +663,15 @@ export default function Leaderboard() {
 
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0 24px' }}>
             <div style={{ position: 'relative' }}>
-              <Avatar name={selectedUser.firstName} size={104} ring={selectedRank === 1 ? 'amber' : 'thin'} photoUrl={selectedUser.avatarUrl} />
+              <button
+                onClick={() => selectedUser.storyUrl && setStoryUserId(selectedUser.id)}
+                aria-label={selectedUser.storyUrl ? t('leaderboard.viewStory') : undefined}
+                style={{ background: 'none', border: 'none', padding: 0, cursor: selectedUser.storyUrl ? 'pointer' : 'default', display: 'block' }}
+              >
+                <StoryRing active={!!selectedUser.storyUrl}>
+                  <Avatar name={selectedUser.firstName} size={104} ring={selectedRank === 1 ? 'amber' : 'thin'} photoUrl={selectedUser.avatarUrl} />
+                </StoryRing>
+              </button>
               <div
                 style={{
                   position: 'absolute',
@@ -663,7 +755,12 @@ export default function Leaderboard() {
             </div>
           </div>
 
-          <div style={{ padding: '0 24px 40px' }}>
+          <div style={{ padding: '0 24px 40px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {selectedUser.storyUrl && (
+              <button onClick={() => setStoryUserId(selectedUser.id)} style={{ ...primaryButtonStyle(), background: 'rgba(255, 178, 90, 0.1)' }}>
+                {t('leaderboard.viewStory')}
+              </button>
+            )}
             <button onClick={closeProfile} style={primaryButtonStyle()}>
               Close
             </button>
@@ -680,6 +777,22 @@ export default function Leaderboard() {
             />
           )}
         </div>
+      )}
+
+      {storyUser && storyUser.storyUrl && (
+        <StoryViewer
+          userId={storyUser.id}
+          name={storyUser.isYou ? t('leaderboard.you') : storyUser.firstName}
+          src={storyUser.storyUrl}
+          isYou={!!storyUser.isYou}
+          canModerate={canModerate}
+          onClose={() => setStoryUserId(null)}
+          onBlock={handleBlockFromStory}
+          onRemoved={() => {
+            setMyStoryUrl(undefined)
+            setStoryUserId(null)
+          }}
+        />
       )}
     </main>
   )
