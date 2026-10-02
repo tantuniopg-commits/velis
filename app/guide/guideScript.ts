@@ -72,8 +72,8 @@ const GUIDE_SCRIPT_EN: Record<GuideStepId, string[]> = {
   ],
   ORB_XP: [
     'Watch for the amber orbs.',
-    'Tap them during your ritual for bonus XP.',
-    'Quick taps in a row are worth more.',
+    'Drag them into the Amber Core for bonus XP.',
+    'Quick catches in a row are worth more.',
   ],
   COMPLETION: [
     'Congratulations!',
@@ -98,8 +98,8 @@ const GUIDE_SCRIPT_TR: Record<GuideStepId, string[]> = {
   ],
   ORB_XP: [
     'Amber toplara dikkat et.',
-    'Ritüel sırasında onlara dokun, ekstra XP kazan.',
-    'Art arda hızlı dokunuşlar daha çok değer.',
+    "Onları Amber Çekirdek'e sürükle, ekstra XP kazan.",
+    'Art arda hızlı yakalamalar daha çok değer.',
   ],
   COMPLETION: [
     'Tebrikler!',
