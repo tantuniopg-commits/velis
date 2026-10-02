@@ -42,6 +42,9 @@ export const translations = {
     'ritual.ready.cta': 'Begin ritual',
     'ritual.complete.continue': 'Continue',
     'ritual.complete.bonusXP': '+{xp} bonus XP collected',
+    'ritual.end.cta': 'End the ritual',
+    'ritual.end.helper': "You've reached your ritual time. Stay as long as you like — XP keeps adding up.",
+    'ritual.overtime.label': 'extra',
 
     'journey.title': 'Your journey',
     'journey.subtitle': 'One choice at a time.',
@@ -102,6 +105,7 @@ export const translations = {
     'settings.item.language': 'Language',
     'settings.item.notifications': 'Notifications',
     'settings.item.sound': 'Sound',
+    'settings.item.ritualDuration': 'Ritual Duration',
     'settings.item.privacy': 'Privacy & Security',
     'settings.item.about': 'About',
 
@@ -121,6 +125,10 @@ export const translations = {
     'settings.sound.breath.desc': 'Almost toneless air and breath. Minimal.',
     'settings.sound.off': 'Silent',
     'settings.sound.off.desc': 'No sound during the ritual.',
+
+    'settings.ritualDuration.title': 'Ritual Duration',
+    'settings.ritualDuration.note': "Choose how long your ritual lasts before you can end it. You're never cut off — once this time passes, an \"End the ritual\" button appears, but the ritual keeps going (and XP keeps adding up) until you tap it.",
+    'settings.ritualDuration.seconds': '{seconds}s',
 
 
     'settings.about.title': 'About',
@@ -292,6 +300,9 @@ export const translations = {
     'ritual.ready.cta': 'Ritüeli başlat',
     'ritual.complete.continue': 'Devam et',
     'ritual.complete.bonusXP': '+{xp} bonus XP kazanıldı',
+    'ritual.end.cta': 'Ritüeli bitir',
+    'ritual.end.helper': 'Ritüel süreni tamamladın. İstediğin kadar kalabilirsin — XP birikmeye devam ediyor.',
+    'ritual.overtime.label': 'fazladan',
 
     'journey.title': 'Yolculuğun',
     'journey.subtitle': 'Bir seçim, bir seferde.',
@@ -352,6 +363,7 @@ export const translations = {
     'settings.item.language': 'Dil',
     'settings.item.notifications': 'Bildirimler',
     'settings.item.sound': 'Ses',
+    'settings.item.ritualDuration': 'Ritüel Süresi',
     'settings.item.privacy': 'Gizlilik ve Güvenlik',
     'settings.item.about': 'Hakkında',
 
@@ -371,6 +383,10 @@ export const translations = {
     'settings.sound.breath.desc': 'Neredeyse tonsuz hava ve nefes. Minimal.',
     'settings.sound.off': 'Sessiz',
     'settings.sound.off.desc': 'Ritüel sırasında ses yok.',
+
+    'settings.ritualDuration.title': 'Ritüel Süresi',
+    'settings.ritualDuration.note': 'Ritüelini bitirebilmen için ne kadar beklemen gerektiğini seç. Hiçbir zaman yarıda kesilmezsin — bu süre dolunca "Ritüeli bitir" butonu çıkar, ama sen basana kadar ritüel (ve XP birikimi) devam eder.',
+    'settings.ritualDuration.seconds': '{seconds} sn',
 
 
     'settings.about.title': 'Hakkında',

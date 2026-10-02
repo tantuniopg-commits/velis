@@ -16,6 +16,7 @@ export default function SettingsIndex() {
     { label: t('settings.item.language'), path: '/profile/settings/language' },
     { label: t('settings.item.notifications'), path: '/profile/settings/notifications' },
     { label: t('settings.item.sound'), path: '/profile/settings/sound' },
+    { label: t('settings.item.ritualDuration'), path: '/profile/settings/ritual-duration' },
     { label: t('settings.item.privacy'), path: '/profile/settings/privacy' },
     { label: t('settings.item.about'), path: '/profile/settings/about' },
   ]

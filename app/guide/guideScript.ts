@@ -66,7 +66,7 @@ const GUIDE_SCRIPT_EN: Record<GuideStepId, string[]> = {
   PROFILE: ['This is your personal space.', 'Your streak.', 'Your XP.', 'Your journey.'],
   RITUAL: [
     'This is your ritual.',
-    'Each ritual lasts 30 seconds.',
+    'Each ritual lasts at least {seconds} seconds — stay as long as you like, XP keeps adding up.',
     "Touch the Amber Core when you're ready.",
     'The object will activate in about 5 seconds.',
   ],
@@ -92,7 +92,7 @@ const GUIDE_SCRIPT_TR: Record<GuideStepId, string[]> = {
   PROFILE: ['Burası senin kişisel alanın.', 'Serin.', "XP'n.", 'Yolculuğun.'],
   RITUAL: [
     'Bu senin ritüelin.',
-    'Her ritüel 30 saniye sürer.',
+    'Her ritüel en az {seconds} saniye sürer — istediğin kadar kal, XP birikmeye devam eder.',
     "Hazır olduğunda Amber Çekirdek'e dokun.",
     'Nesne yaklaşık 5 saniye içinde etkinleşecek.',
   ],
@@ -109,8 +109,18 @@ const GUIDE_SCRIPT_TR: Record<GuideStepId, string[]> = {
   ],
 }
 
-export function getGuideScript(locale: LocaleCode = 'en'): Record<GuideStepId, string[]> {
-  return locale === 'tr' ? GUIDE_SCRIPT_TR : GUIDE_SCRIPT_EN
+// `ritualDurationSec` verilirse RITUAL adımındaki "{seconds}" yer tutucusu
+// kullanıcının GERÇEK eşiğiyle (bkz. lib/ritualConfig.ts) değiştiriliyor -
+// rehber artık sabit "30 saniye" demiyor, kullanıcının kendi ayarını söylüyor
+// (bkz. app/page.tsx RITUAL adımı çağrısı). Verilmezse (eski çağrı noktaları
+// için) yer tutucu olduğu gibi kalır.
+export function getGuideScript(locale: LocaleCode = 'en', ritualDurationSec?: number): Record<GuideStepId, string[]> {
+  const script = locale === 'tr' ? GUIDE_SCRIPT_TR : GUIDE_SCRIPT_EN
+  if (ritualDurationSec == null) return script
+  return {
+    ...script,
+    RITUAL: script.RITUAL.map((line) => line.replace('{seconds}', String(ritualDurationSec))),
+  }
 }
 
 // Geriye dönük uyumluluk için - varsayılan (İngilizce) script.

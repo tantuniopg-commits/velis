@@ -190,6 +190,13 @@ function Landing() {
   // kıldığı gerçek süre sadece mount SONRASI (aşağıdaki effect) okunuyor,
   // hydration uyuşmazlığı riskini tamamen ortadan kaldırıyor.
   const [secondsLeft, setSecondsLeft] = useState(PRODUCTION_RITUAL_DURATION_SEC)
+  // Ritüel kullanıcının eşiğine (bkz. lib/ritualConfig.ts) ulaşınca OTOMATİK
+  // bitmiyor - secondsLeft 0'da kalırken bu sayaç yukarı saymaya başlıyor,
+  // "Ritüeli Bitir" butonu belirir (bkz. aşağıdaki overtime effect'i ve
+  // handleFinishRitual). Kullanıcı basmadığı sürece XP toplamaya (amber top)
+  // devam edilebiliyor - "min X, max sonsuz".
+  const [overtimeSec, setOvertimeSec] = useState(0)
+  const overtimeIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   // O an SÜREN ritüelin gerçekte hangi süreyle başladığı - ritüel bitince
   // completeRitual() burayı okuyor, config ritüel ORTASINDA değişse bile
   // XP/toplam süre kaydı gerçekte yaşanan süreyi yansıtıyor.
@@ -393,13 +400,15 @@ function Landing() {
       activeDurationRef.current = s.durationSec
       orbXPRef.current = s.orbXP
       if (remaining <= 0) {
-        // Süre ekran dışındayken doldu - phase+secondsLeft:0 ile completion
-        // effect'ini tetikliyoruz (ritüeli tam olarak bir kez tamamlıyor).
+        // Eşik ekran dışındayken doldu - ritüel OTOMATİK bitmiyor, overtime
+        // moduna (bkz. handleFinishRitual) ekran dışında geçen fazla süre de
+        // dahil edilerek devam ediyor.
         setSecondsLeft(0)
+        setOvertimeSec(-remaining)
       } else {
         setSecondsLeft(remaining)
-        startAmbient()
       }
+      startAmbient()
       setPhase('ritual')
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -432,6 +441,24 @@ function Landing() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase])
 
+  // ---- OVERTIME ---- geri sayım 0'a ulaştıktan SONRA - ritüel otomatik
+  // bitmiyor, bu sayaç yukarı saymaya başlıyor ("Ritüeli Bitir" butonu bu
+  // sırada görünür, bkz. aşağıdaki JSX). handleFinishRitual bu süreyi gerçek
+  // toplam süreye (activeDurationRef + overtimeSec) ekliyor - ne kadar
+  // uzatılırsa uzatılsın XP/toplam süre istatistiği doğru kalıyor.
+  useEffect(() => {
+    if (phase !== 'ritual' || secondsLeft !== 0) return
+    overtimeIntervalRef.current = setInterval(() => {
+      setOvertimeSec((s) => s + 1)
+    }, 1000)
+    return () => {
+      if (overtimeIntervalRef.current) {
+        clearInterval(overtimeIntervalRef.current)
+        overtimeIntervalRef.current = null
+      }
+    }
+  }, [phase, secondsLeft])
+
   // ---- RİTÜEL DİSİPLİNİ ---- Ritüel BOYUNCA uygulamada kalınmalı. Uygulama
   // arka plana atılır / telefon kilitlenir / başka uygulamaya geçilirse
   // (visibilitychange -> hidden) o anki ritüel İPTAL olur: yapılmış
@@ -452,11 +479,16 @@ function Landing() {
         countdownRef.current = null
       }
       if (activatingTimerRef.current) clearTimeout(activatingTimerRef.current)
+      if (overtimeIntervalRef.current) {
+        clearInterval(overtimeIntervalRef.current)
+        overtimeIntervalRef.current = null
+      }
       orbXPRef.current = 0
       setOrb(null)
       setOrbPopups([])
       setIsHoldingRitual(false)
       setSecondsLeft(getRitualDurationSec())
+      setOvertimeSec(0)
       setPhase('idle')
     }
     document.addEventListener('visibilitychange', onVisibilityChange)
@@ -512,22 +544,35 @@ function Landing() {
     }
   }, [])
 
-  // ---- 6. RİTÜEL BİTTİ: 90sn dolunca "complete" durumuna geç ----
+  // ---- 6. RİTÜEL BİTTİ: kullanıcı "Ritüeli Bitir"e basınca "complete"
+  // durumuna geç ----
   // Ritüelin "tamamlandı" sayıldığı TEK an burası - XP/toplam sayaçlar her
   // zaman artıyor, Journey Day/Streak ise sadece 24 saatlik soğuma
   // dolduysa ilerliyor (bkz. lib/journey.ts).
-  useEffect(() => {
+  //
+  // ESKİDEN secondsLeft 0'a ulaşınca OTOMATİK tetiklenen bir effect'ti.
+  // Artık eşik (bkz. lib/ritualConfig.ts) dolunca ritüel kendiliğinden
+  // bitmiyor - secondsLeft 0'da kalırken overtimeSec yukarı sayıyor (bkz.
+  // overtime effect'i) ve bu fonksiyon SADECE kullanıcı "Ritüeli Bitir"
+  // butonuna basınca çağrılıyor. Gerçek toplam süre (eşik + gönüllü uzatılan
+  // kısım) completeRitual'a geçiyor, yani totalRitualTimeSec her zaman
+  // GERÇEKTEN yaşanan süreyi yansıtıyor.
+  const handleFinishRitual = () => {
     if (phase !== 'ritual' || secondsLeft !== 0) return
     if (countdownRef.current) {
       clearInterval(countdownRef.current)
       countdownRef.current = null
+    }
+    if (overtimeIntervalRef.current) {
+      clearInterval(overtimeIntervalRef.current)
+      overtimeIntervalRef.current = null
     }
     setIsHoldingRitual(false)
     clearRitualSession()
     const beforeTimestamp = getStoredStats().journeyTimestamp
     isFirstRitualRef.current = beforeTimestamp === null
     setOrbBonusXP(orbXPRef.current)
-    const after = completeRitual(activeDurationRef.current, orbXPRef.current)
+    const after = completeRitual(activeDurationRef.current + overtimeSec, orbXPRef.current)
     // journeyTimestamp SADECE Journey Day gerçekten ilerlediğinde değişiyor
     // (bkz. lib/journey.ts) - değişmediyse bu erken/tekrar bir ritüeldi.
     dayAdvancedRef.current = after.journeyTimestamp !== beforeTimestamp
@@ -536,7 +581,7 @@ function Landing() {
     stopAmbient()
     playSound('complete')
     setPhase('complete')
-  }, [phase, secondsLeft])
+  }
 
   // Bitiş ekranı satırları - obje sessizce uykuya dönerken teker teker,
   // yumuşakça beliriyor (kutlama yok, sadece sakin bir kapanış).
@@ -598,6 +643,7 @@ function Landing() {
     const duration = getRitualDurationSec()
     activeDurationRef.current = duration
     setSecondsLeft(duration)
+    setOvertimeSec(0)
     // Oturumu setPhase'den ÖNCE yaz - phase → 'ritual' effect'i orbXP'yi
     // buradan okuyor, taze başlangıçta 0 görmeli. Geri sayım artık bir
     // effect'te (bkz. aşağıdaki countdown effect) - buradan imperatif
@@ -949,7 +995,9 @@ function Landing() {
             </button>
           </div>
 
-          {/* RITUAL: sayaç */}
+          {/* RITUAL: sayaç - eşik dolunca (secondsLeft===0) OTOMATİK bitmiyor,
+              sayaç "+" ile yukarı saymaya devam ediyor ve altında "Ritüeli
+              Bitir" butonu beliriyor (bkz. handleFinishRitual, lib/ritualConfig.ts). */}
           <div
             style={{
               position: 'absolute',
@@ -957,6 +1005,7 @@ function Landing() {
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
+              gap: '18px',
               opacity: phase === 'ritual' ? 1 : 0,
               transition: 'opacity 500ms ease-in-out',
               pointerEvents: 'none',
@@ -967,12 +1016,56 @@ function Landing() {
                 fontFamily: FONT_SANS,
                 fontWeight: 300,
                 fontSize: '48px',
-                color: '#F5F0EA',
+                color: secondsLeft === 0 ? '#E3C08C' : '#F5F0EA',
                 textAlign: 'center',
                 lineHeight: 1,
+                transition: 'color 400ms ease-in-out',
               }}
             >
-              {formatTime(secondsLeft)}
+              {secondsLeft === 0 ? `+${formatTime(overtimeSec)}` : formatTime(secondsLeft)}
+            </div>
+            <div
+              style={{
+                opacity: secondsLeft === 0 ? 1 : 0,
+                transform: secondsLeft === 0 ? 'translateY(0px)' : 'translateY(6px)',
+                transition: 'opacity 450ms ease-in-out, transform 450ms ease-in-out',
+                pointerEvents: secondsLeft === 0 ? 'auto' : 'none',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '8px',
+              }}
+            >
+              <button
+                onClick={handleFinishRitual}
+                style={{
+                  padding: '13px 30px',
+                  borderRadius: '999px',
+                  border: '1px solid rgba(255, 178, 90, 0.5)',
+                  background: 'rgba(255, 178, 90, 0.06)',
+                  color: '#E3C08C',
+                  fontFamily: FONT_SANS,
+                  fontWeight: 600,
+                  fontSize: '14px',
+                  letterSpacing: '0.2px',
+                  cursor: 'pointer',
+                }}
+              >
+                {t('ritual.end.cta')}
+              </button>
+              <div
+                style={{
+                  maxWidth: '240px',
+                  fontFamily: FONT_SANS,
+                  fontWeight: 400,
+                  fontSize: '12px',
+                  lineHeight: 1.4,
+                  color: '#8F8A83',
+                  textAlign: 'center',
+                }}
+              >
+                {t('ritual.end.helper')}
+              </div>
             </div>
           </div>
 
@@ -1042,7 +1135,7 @@ function Landing() {
       {!introActive && showRitualGuide && !idleGuideDone && phase === 'idle' && (
         <GuideOverlay
           targetRect={objectRect}
-          lines={getGuideScript(locale).RITUAL}
+          lines={getGuideScript(locale, secondsLeft).RITUAL}
           guidePlacement="bottom"
           onDialogueDone={() => setIdleGuideDone(true)}
           onSkip={() => {
