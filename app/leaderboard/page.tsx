@@ -503,36 +503,8 @@ export default function Leaderboard() {
         padding: '56px 20px 0',
       }}
     >
-      <h1
-        style={{
-          margin: 0,
-          fontFamily: FONT_SANS,
-          fontWeight: 600,
-          fontSize: '26px',
-          color: '#F5F0EA',
-          textAlign: 'center',
-        }}
-      >
-        {t('leaderboard.title')}
-      </h1>
-      <p
-        style={{
-          margin: '10px 0 0',
-          fontFamily: FONT_SANS,
-          fontWeight: 400,
-          fontSize: '14px',
-          lineHeight: 1.5,
-          color: '#D2CCC5',
-          textAlign: 'center',
-        }}
-      >
-        {t('leaderboard.subtitle1')}
-        <br />
-        {t('leaderboard.subtitle2')}
-      </p>
-
       {storyUsers.length > 0 && (
-        <div style={{ marginTop: '24px', width: '100%', maxWidth: '560px' }}>
+        <div style={{ width: '100%', maxWidth: '560px' }}>
           <div style={{ ...labelStyle('#9A948C'), padding: '0 4px' }}>{t('leaderboard.stories')}</div>
           <div style={{ marginTop: '12px', display: 'flex', gap: '14px', overflowX: 'auto', padding: '2px 4px 6px' }}>
             {storyUsers.map((u) => (

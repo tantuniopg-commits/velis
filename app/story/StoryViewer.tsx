@@ -11,6 +11,10 @@ import { getStoredToken } from '../lib/auth'
 // Liderlik tablosunda birinin son 24 saatteki before/after hikayesi - tam
 // ekran. Başkasının hikayesinde bildir/engelle (App Store 1.2, bkz.
 // ModerationSheet); kendi hikayende "Hikayemi kaldır". Kapanış senkron.
+//
+// Başkasının hikayesi uygulama içinden KAYDEDİLEMİYOR: görsel uzun basma
+// menüsünü (Fotoğraflar'a Ekle / Paylaş) açmıyor, sürüklenemiyor, seçilemiyor.
+// Ekran görüntüsünü iOS bir web görünümünden engellemeye izin vermiyor.
 
 export default function StoryViewer({
   userId,
@@ -96,8 +100,20 @@ export default function StoryViewer({
           <img
             src={src}
             alt=""
+            draggable={false}
             onError={() => setFailed(true)}
-            style={{ height: '100%', maxWidth: '100%', aspectRatio: '9 / 16', objectFit: 'contain', borderRadius: '16px' }}
+            onContextMenu={(e) => e.preventDefault()}
+            style={{
+              height: '100%',
+              maxWidth: '100%',
+              aspectRatio: '9 / 16',
+              objectFit: 'contain',
+              borderRadius: '16px',
+              WebkitTouchCallout: 'none',
+              WebkitUserSelect: 'none',
+              userSelect: 'none',
+              pointerEvents: 'none',
+            }}
           />
         )}
       </div>

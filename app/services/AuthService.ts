@@ -19,6 +19,7 @@ import { userRepository } from '../repositories'
 import { setAppState } from './AppStateManager'
 import { clearWelcomeSeen, clearUserType, clearLanguageSelected } from '../lib/onboarding'
 import { clearGuideCompleted } from '../lib/guide'
+import { deleteArchiveForUser } from '../lib/storyArchive'
 import { syncStatsToServer } from '../lib/journey'
 import {
   updateProfileRequest,
@@ -362,6 +363,10 @@ export function logOut(): void {
 // yerelde kilitli bırakmamak için yerel temizlik yine de yapılıyor.
 export async function deleteAccount(): Promise<void> {
   const token = getStoredToken()
+  // Hikaye Arşivi sadece bu cihazda - hesapla birlikte o da gidiyor (çıkış
+  // yapmak ise arşivi silmiyor, bkz. lib/storyArchive.ts).
+  const userId = getStoredUser()?.id
+  if (userId) await deleteArchiveForUser(userId)
   if (token) {
     try {
       await deleteAccountRequest(token)

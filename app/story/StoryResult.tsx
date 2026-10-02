@@ -3,10 +3,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { FONT_SANS } from '../lib/typography'
 import { useLocale } from '../contexts/LocaleContext'
-import { composeStory, storyToShareDataUrl, storyToUploadDataUrl } from '../lib/storyImage'
+import { composeStory, storyToShareDataUrl, storyToUploadDataUrl, photoToThumbDataUrl } from '../lib/storyImage'
+import { saveArchiveEntry, dateKeyFor } from '../lib/storyArchive'
 import { saveStoryImage } from '../lib/storyShare'
 import { uploadStoryRequest, AuthApiError } from '../lib/authApi'
-import { getStoredToken } from '../lib/auth'
+import { getStoredToken, getStoredUser } from '../lib/auth'
 
 // Ritüel bitip "sonra" fotoğrafı da çekilince: before/after görseli üretilip
 // gösteriliyor. Kullanıcı film rulosuna kaydedebilir ve İSTERSE "Hikayemde
@@ -54,7 +55,17 @@ export default function StoryResult({
     })
       .then((canvas) => {
         if (cancelled) return
-        setShareUrl(storyToShareDataUrl(canvas))
+        const full = storyToShareDataUrl(canvas)
+        setShareUrl(full)
+        // Hikaye Arşivi: oluşan her görsel bugünün tarihiyle bu cihaza kaydediliyor
+        // (paylaşılsın ya da paylaşılmasın). Best-effort - başarısızlık akışı bozmasın.
+        const userId = getStoredUser()?.id
+        if (userId) {
+          const dateKey = dateKeyFor(new Date())
+          photoToThumbDataUrl(after)
+            .then((thumb) => saveArchiveEntry(userId, dateKey, full, thumb))
+            .catch(() => {})
+        }
         try {
           uploadUrlRef.current = storyToUploadDataUrl(canvas)
         } catch {

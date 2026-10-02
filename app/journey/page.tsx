@@ -4,10 +4,11 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import VelisMark from '../VelisMark'
 import RewardBadge from '../RewardBadge'
-import { getStoredStats } from '../lib/auth'
+import { getStoredStats, getStoredUser } from '../lib/auth'
 import { getCooldownRemainingMs, formatCooldown, canViewJourneyDay, TOTAL_JOURNEY_DAYS, CHAPTER_LENGTH } from '../services/JourneyService'
 import { FONT_SANS } from '../lib/typography'
 import { useAppNav } from '../contexts/AppNavContext'
+import StoryArchive from './StoryArchive'
 import { useLocale } from '../contexts/LocaleContext'
 
 // Hesap henüz yoksa (guided registration), Day 1 içeriği kısaca gösterildikten
@@ -232,6 +233,10 @@ export default function Journey() {
   const [journeyDay, setJourneyDay] = useState(0)
   const [cooldownMs, setCooldownMs] = useState<number | null>(null)
   const journeyTimestampRef = useRef<number | null>(null)
+  // Hikaye Arşivi sadece hesabı olan kullanıcıya (arşiv kullanıcı kimliğine
+  // bağlı, bkz. lib/storyArchive.ts). Mount sonrası okunuyor - hydration güvenli.
+  const [hasArchive, setHasArchive] = useState(false)
+  const archiveRef = useRef<HTMLDivElement>(null)
 
   const totalPages = Math.ceil(TOTAL_JOURNEY_DAYS / CHAPTER_LENGTH)
   const [page, setPage] = useState(0)
@@ -241,6 +246,7 @@ export default function Journey() {
 
   useEffect(() => {
     const stats = getStoredStats()
+    setHasArchive(!!getStoredUser()?.id)
     setJourneyDay(stats.journeyDay)
     journeyTimestampRef.current = stats.journeyTimestamp
     setCooldownMs(getCooldownRemainingMs(stats.journeyTimestamp))
@@ -327,7 +333,8 @@ export default function Journey() {
   return (
     <main
       style={{
-        height: '100dvh',
+        // Hikaye Arşivi ekranın altına eklendi - sayfa artık aşağı kayıyor.
+        minHeight: '100dvh',
         background: '#050505',
         display: 'flex',
         flexDirection: 'column',
@@ -336,7 +343,7 @@ export default function Journey() {
         opacity: dimmed ? 0.25 : 1,
         pointerEvents: unlocked ? 'auto' : 'none',
         transition: 'opacity 900ms ease-in-out',
-        overflow: 'hidden',
+        overflowX: 'hidden',
       }}
     >
       <VelisMark />
@@ -454,7 +461,37 @@ export default function Journey() {
         </div>
       )}
 
-      <div style={{ height: 'calc(80px + env(safe-area-inset-bottom))', flexShrink: 0 }} />
+      {hasArchive && (
+        <>
+          <button
+            onClick={() => archiveRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+            aria-label={t('journey.toArchive')}
+            style={{
+              marginTop: '28px',
+              width: '52px',
+              height: '52px',
+              borderRadius: '50%',
+              border: '1px solid rgba(255, 255, 255, 0.18)',
+              background: 'rgba(255, 255, 255, 0.04)',
+              color: '#F5F0EA',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              flexShrink: 0,
+            }}
+          >
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 5v14M6 13l6 6 6-6" />
+            </svg>
+          </button>
+          <div ref={archiveRef} style={{ marginTop: '56px', width: '100%', display: 'flex', justifyContent: 'center', scrollMarginTop: 'calc(24px + env(safe-area-inset-top))' }}>
+            <StoryArchive />
+          </div>
+        </>
+      )}
+
+      <div style={{ height: 'calc(108px + env(safe-area-inset-bottom))', flexShrink: 0 }} />
     </main>
   )
 }

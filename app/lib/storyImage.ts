@@ -251,6 +251,24 @@ export async function composeStory(opts: {
   return canvas
 }
 
+// Hikaye Arşivi ızgarası için küçük önizleme (bkz. lib/storyArchive.ts) -
+// birleşik görsel küçük kartta okunmuyor, o yüzden "sonra" fotoğrafından,
+// 9:16 kırpılmış.
+export async function photoToThumbDataUrl(photo: string): Promise<string> {
+  const img = await loadImage(photo)
+  const small = document.createElement('canvas')
+  small.width = 270
+  small.height = 480
+  const ctx = small.getContext('2d')
+  if (!ctx) throw new Error('Canvas unavailable.')
+  ctx.imageSmoothingQuality = 'high'
+  const scale = Math.max(small.width / img.naturalWidth, small.height / img.naturalHeight)
+  const dw = img.naturalWidth * scale
+  const dh = img.naturalHeight * scale
+  ctx.drawImage(img, (small.width - dw) / 2, (small.height - dh) / 2, dw, dh)
+  return small.toDataURL('image/jpeg', 0.8)
+}
+
 export function storyToShareDataUrl(canvas: HTMLCanvasElement): string {
   return canvas.toDataURL('image/jpeg', 0.92)
 }
