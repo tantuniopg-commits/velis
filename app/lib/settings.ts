@@ -30,21 +30,11 @@ export type AppearanceSettings = {
   darkMode: boolean
 }
 
-// Kullanıcının ritüel için seçtiği ALT EŞİK (bkz. lib/ritualConfig.ts) - bu
-// süre dolunca ritüel otomatik bitmiyor, "Ritüeli Bitir" butonu çıkıyor;
-// kullanıcı basmadığı sürece sınırsız devam ediyor. 30-240sn arası,
-// varsayılan 30 (eski sabit üretim süresiyle aynı - mevcut kullanıcılar için
-// davranış değişmiyor, sadece artık değiştirilebiliyor).
-export type RitualSettings = {
-  durationSec: number
-}
-
 export type UserSettings = {
   language: string // bkz. lib/locales.ts SUPPORTED_LOCALES[].code
   notifications: NotificationSettings
   appearance: AppearanceSettings
   sound: SoundSettings
-  ritual: RitualSettings
 }
 
 const DEFAULT_SETTINGS: UserSettings = {
@@ -57,9 +47,6 @@ const DEFAULT_SETTINGS: UserSettings = {
   },
   sound: {
     palette: 'ceramic',
-  },
-  ritual: {
-    durationSec: 30,
   },
 }
 
@@ -77,7 +64,6 @@ export function getStoredSettings(): UserSettings {
       notifications: { ...DEFAULT_SETTINGS.notifications, ...parsed.notifications },
       appearance: { ...DEFAULT_SETTINGS.appearance, ...parsed.appearance },
       sound: { ...DEFAULT_SETTINGS.sound, ...parsed.sound },
-      ritual: { ...DEFAULT_SETTINGS.ritual, ...parsed.ritual },
     }
   } catch {
     return DEFAULT_SETTINGS

@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { getStoredSettings, saveSettings } from '../services/SettingsService'
 import type { UserSettings, NotificationSettings, AppearanceSettings, SoundPalette } from '../services/SettingsService'
-import { USER_MIN_RITUAL_DURATION_SEC, USER_MAX_RITUAL_DURATION_SEC } from '../lib/ritualConfig'
 import { getStoredToken } from '../lib/auth'
 import { updatePreferencesRequest } from '../lib/authApi'
 
@@ -62,17 +61,5 @@ export function useSettings() {
     })
   }, [])
 
-  // Ritüelin alt eşiği (bkz. lib/ritualConfig.ts) - bu süre dolunca "Ritüeli
-  // Bitir" butonu çıkıyor, kullanıcı basmadığı sürece sınırsız devam ediyor.
-  const updateRitualDuration = useCallback((seconds: number) => {
-    const clamped = Math.min(USER_MAX_RITUAL_DURATION_SEC, Math.max(USER_MIN_RITUAL_DURATION_SEC, Math.round(seconds)))
-    setSettings((prev) => {
-      const current = prev ?? getStoredSettings()
-      const next = { ...current, ritual: { durationSec: clamped } }
-      saveSettings(next)
-      return next
-    })
-  }, [])
-
-  return { settings, updateLanguage, updateNotifications, updateSound, updateAppearance, updateRitualDuration }
+  return { settings, updateLanguage, updateNotifications, updateSound, updateAppearance }
 }
