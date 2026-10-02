@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useEffect, useRef, useState } from 'react'
+import { Suspense, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import RitualObject, { ACTIVATING_MS } from './RitualObject'
 import { isGuideCompleted, setGuideCompleted } from './lib/guide'
@@ -246,19 +246,27 @@ function Landing() {
   }, [])
 
   // ---- Amber çekirdek toplama mekaniği: ritüel sırasında rastgele
-  // konumlarda beliren, büyütülmüş amber toplar. Dokununca yavaşça kaybolup
-  // +XP veriyor, ~1sn sonra yeni bir top başka bir yerde beliriyor. 3sn
-  // içinde art arda dokunursa ödül +5 artarak birikiyor (5, 10, 15...);
-  // 3sn'den uzun ara verilirse +5'e sıfırlanıyor. Toplanan XP ritüel
-  // bitince gerçek toplam XP'ye ekleniyor (bkz. completeRitual bonusXP).
-  const [orb, setOrb] = useState<{ x: number; y: number; fading: boolean } | null>(null)
+  // konumlarda beliren, büyütülmüş amber toplar. Kullanıcı topu parmağıyla
+  // SÜRÜKLEYİP objenin ortasındaki amber çekirdeğe getirince +XP kazanıyor;
+  // top çekirdeğe değdiği AN emiliyor ve yenisi başka bir yerde hemen
+  // beliriyor (setTimeout YOK - WKWebView'de ertelenebiliyor, bkz. AGENTS.md).
+  // Çekirdeğe ulaşmadan bırakılırsa top yumuşakça kendi yerine geri
+  // süzülüyor. 3sn içinde art arda toplanırsa ödül +5 artarak birikiyor
+  // (5, 10, 15...); 3sn'den uzun ara verilirse +5'e sıfırlanıyor. Toplanan
+  // XP ritüel bitince gerçek toplam XP'ye ekleniyor (bkz. completeRitual bonusXP).
+  const [orb, setOrb] = useState<{ id: number; x: number; y: number } | null>(null)
   const [orbPopups, setOrbPopups] = useState<{ id: number; x: number; y: number; text: string }[]>([])
   const comboStepRef = useRef(5)
   const lastOrbTapRef = useRef<number | null>(null)
   const orbXPRef = useRef(0)
   const [orbBonusXP, setOrbBonusXP] = useState(0)
-  const orbTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const popupIdRef = useRef(0)
+  const orbIdRef = useRef(0)
+  // Sürükleme sırasında top her pointermove'da React render'ı OLMADAN,
+  // doğrudan DOM transform'u ile taşınıyor - koca Ritual sayfasını her
+  // karede yeniden render etmemek için (akıcı sürükleme).
+  const orbElRef = useRef<HTMLDivElement>(null)
+  const orbDragRef = useRef<{ pointerId: number; offsetX: number; offsetY: number } | null>(null)
 
   // Objenin gerçek ekran konumuna göre - toplar objeye ASLA değmiyor (min
   // boşluk) ve ondan çok da uzaklaşmıyor (max mesafe), sağında/solunda
@@ -266,6 +274,13 @@ function Landing() {
   const ORB_MIN_GAP = 46
   const ORB_MAX_DIST = 120
   const ORB_SIZE = 18
+  // Parmakla telefonda rahat tutulabilsin diye geniş, görünmez dokunma
+  // alanı - görsel top 18px kalıyor. Yarısı (44px) ORB_MIN_GAP + yarıçaptan
+  // küçük, yani dokunma alanı objenin üstüne taşmıyor.
+  const ORB_HIT_SIZE = 88
+  // Topun merkezi tam çekirdeğin (13px'lik amber boncuk, bkz. RitualObject)
+  // içine girince emiliyor - yakınına getirmek yetmiyor.
+  const ORB_CAPTURE_RADIUS = 8
   const spawnOrb = () => {
     const rect = objectRef.current?.getBoundingClientRect()
     if (!rect) return
@@ -275,12 +290,13 @@ function Landing() {
     // (ORB_SIZE/2) mesafeye ekliyoruz.
     const dist = ORB_SIZE / 2 + ORB_MIN_GAP + Math.random() * (ORB_MAX_DIST - ORB_MIN_GAP)
     let x = side === -1 ? rect.left - dist : rect.right + dist
-    x = Math.max(ORB_SIZE, Math.min(window.innerWidth - ORB_SIZE, x))
+    x = Math.max(ORB_HIT_SIZE / 2, Math.min(window.innerWidth - ORB_HIT_SIZE / 2, x))
     const y = Math.max(
       ORB_SIZE + 60,
       Math.min(window.innerHeight - ORB_SIZE - 60, rect.top + rect.height * 0.15 + Math.random() * rect.height * 0.7)
     )
-    setOrb({ x, y, fading: false })
+    orbDragRef.current = null
+    setOrb({ id: ++orbIdRef.current, x, y })
   }
 
   useEffect(() => {
@@ -297,8 +313,8 @@ function Landing() {
       if (secondsLeft > 0) spawnOrb()
     } else {
       setOrb(null)
+      orbDragRef.current = null
       setOrbPopups([])
-      if (orbTimerRef.current) clearTimeout(orbTimerRef.current)
       // 'complete' zaten yumuşak fade ile durdurdu - burası idle'a/başka
       // faza atlanan diğer tüm yolları güvenceye alıyor (no-op'sa zararsız).
       if (phase !== 'complete') stopAmbient()
@@ -306,33 +322,73 @@ function Landing() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase])
 
-  const handleOrbTap = () => {
-    if (!orb || orb.fading) return
+  // Çekirdeğin o anki merkezi - obje sürekli hafifçe süzülüyor
+  // (ritual-object--float), o yüzden her seferinde taze ölçülüyor.
+  const getCoreCenter = () => {
+    const rect = objectRef.current?.getBoundingClientRect()
+    if (!rect) return null
+    return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }
+  }
+
+  const setOrbOffset = (dx: number, dy: number, animate: boolean) => {
+    const el = orbElRef.current
+    if (!el) return
+    el.style.transition = animate ? 'transform 380ms cubic-bezier(0.22, 1, 0.36, 1)' : 'none'
+    el.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`
+  }
+
+  const absorbOrb = (coreX: number, coreY: number) => {
     triggerHaptic()
     playSound('orb')
     const now = Date.now()
     const withinCombo = lastOrbTapRef.current !== null && now - lastOrbTapRef.current <= 3000
-    // 30'a ulaşınca (üst sınır) bir sonraki dokunuşta süre içinde olsa bile
+    // 30'a ulaşınca (üst sınır) bir sonraki toplamada süre içinde olsa bile
     // döngü baştan başlıyor - 5, 10, 15, 20, 25, 30, 5, 10...
     comboStepRef.current = withinCombo && comboStepRef.current < 30 ? comboStepRef.current + 5 : 5
     const award = comboStepRef.current
     lastOrbTapRef.current = now
     orbXPRef.current += award
-    // Her dokunuşta kalıcılaştır - ritüel ortasında sekme değişse bile
+    // Her toplamada kalıcılaştır - ritüel ortasında sekme değişse bile
     // toplanan bonus XP geri dönüşte korunuyor.
     patchRitualSession({ orbXP: orbXPRef.current })
 
     const id = ++popupIdRef.current
-    const { x, y } = orb
-    setOrbPopups((p) => [...p, { id, x, y, text: `+${award}` }])
+    setOrbPopups((p) => [...p, { id, x: coreX, y: coreY - 34, text: `+${award}` }])
+    // Sadece görsel temizlik - geç kalırsa popup zaten CSS ile görünmez.
     setTimeout(() => setOrbPopups((p) => p.filter((pp) => pp.id !== id)), 750)
 
-    setOrb((o) => (o ? { ...o, fading: true } : o))
-    if (orbTimerRef.current) clearTimeout(orbTimerRef.current)
-    orbTimerRef.current = setTimeout(() => {
-      setOrb(null)
-      orbTimerRef.current = setTimeout(spawnOrb, 450)
-    }, 500)
+    // Yeni top AYNI ANDA, senkron olarak beliriyor.
+    spawnOrb()
+  }
+
+  const handleOrbPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (!orb || orbDragRef.current) return
+    e.preventDefault()
+    e.currentTarget.setPointerCapture(e.pointerId)
+    orbDragRef.current = { pointerId: e.pointerId, offsetX: e.clientX - orb.x, offsetY: e.clientY - orb.y }
+    orbElRef.current?.classList.add('orb--held')
+  }
+
+  const handleOrbPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const drag = orbDragRef.current
+    if (!orb || !drag || drag.pointerId !== e.pointerId) return
+    const cx = e.clientX - drag.offsetX
+    const cy = e.clientY - drag.offsetY
+    const core = getCoreCenter()
+    if (core && Math.hypot(cx - core.x, cy - core.y) <= ORB_CAPTURE_RADIUS) {
+      absorbOrb(core.x, core.y)
+      return
+    }
+    setOrbOffset(cx - orb.x, cy - orb.y, false)
+  }
+
+  const handleOrbPointerEnd = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const drag = orbDragRef.current
+    if (!drag || drag.pointerId !== e.pointerId) return
+    orbDragRef.current = null
+    orbElRef.current?.classList.remove('orb--held')
+    // Çekirdeğe ulaşmadan bırakıldı - kendi yerine yumuşakça geri dön.
+    setOrbOffset(0, 0, true)
   }
 
   const activatingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -631,7 +687,7 @@ function Landing() {
 
   // ---- 4. Onay kutusundaki "Continue": ritüeli başlatır - sayaç otomatik
   // işliyor (bkz. spec: hold-to-charge fonksiyonu iptal edildi, asıl
-  // etkileşim artık amber toplar - bkz. handleOrbTap). ----
+  // etkileşim artık amber toplar - bkz. handleOrbPointerDown). ----
   const handleStartRitual = () => {
     if (phase !== 'ready') return
     triggerHaptic()
@@ -1166,25 +1222,41 @@ function Landing() {
         <div aria-hidden={false} style={{ position: 'fixed', inset: 0, zIndex: 40, pointerEvents: 'none' }}>
           {orb && (
             <div
-              onClick={handleOrbTap}
+              key={orb.id}
+              ref={orbElRef}
+              onPointerDown={handleOrbPointerDown}
+              onPointerMove={handleOrbPointerMove}
+              onPointerUp={handleOrbPointerEnd}
+              onPointerCancel={handleOrbPointerEnd}
               style={{
                 position: 'fixed',
                 top: `${orb.y}px`,
                 left: `${orb.x}px`,
                 transform: 'translate(-50%, -50%)',
-                width: '18px',
-                height: '18px',
-                borderRadius: '50%',
-                background:
-                  'radial-gradient(circle at 34% 28%, #FFFBF0 0%, #FFE3B4 26%, #FFC172 52%, #F0921F 80%, #D9701A 100%)',
-                boxShadow:
-                  'inset 0 0 3px rgba(255, 245, 220, 0.9), 0 0 8px 2px rgba(255, 196, 120, 0.55), 0 0 18px 5px rgba(240, 138, 36, 0.2)',
-                opacity: orb.fading ? 0 : 1,
-                transition: 'opacity 480ms ease-in-out',
+                width: `${ORB_HIT_SIZE}px`,
+                height: `${ORB_HIT_SIZE}px`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
                 pointerEvents: 'auto',
-                cursor: 'pointer',
+                touchAction: 'none',
+                cursor: 'grab',
+                willChange: 'transform',
               }}
-            />
+            >
+              <div
+                className="orb-ball orb-appear"
+                style={{
+                  width: `${ORB_SIZE}px`,
+                  height: `${ORB_SIZE}px`,
+                  borderRadius: '50%',
+                  background:
+                    'radial-gradient(circle at 34% 28%, #FFFBF0 0%, #FFE3B4 26%, #FFC172 52%, #F0921F 80%, #D9701A 100%)',
+                  boxShadow:
+                    'inset 0 0 3px rgba(255, 245, 220, 0.9), 0 0 8px 2px rgba(255, 196, 120, 0.55), 0 0 18px 5px rgba(240, 138, 36, 0.2)',
+                }}
+              />
+            </div>
           )}
           {orbPopups.map((p) => (
             <div
