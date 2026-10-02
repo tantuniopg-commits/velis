@@ -6,6 +6,7 @@ import { LocaleProvider } from "./contexts/LocaleContext";
 import GlobalNav from "./GlobalNav";
 import ConnectionGate from "./ConnectionGate";
 import NotificationsBoot from "./NotificationsBoot";
+import StatusBarScrim from "./StatusBarScrim";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -52,6 +53,7 @@ export default function RootLayout({
           <AppNavProvider>
             <ConnectionGate>
               {children}
+              <StatusBarScrim />
               <GlobalNav />
               <NotificationsBoot />
             </ConnectionGate>

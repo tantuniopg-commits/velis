@@ -346,130 +346,143 @@ export default function Journey() {
         overflowX: 'hidden',
       }}
     >
-      <VelisMark />
-
-      <h1
-        style={{
-          margin: '14px 0 0',
-          fontFamily: FONT_SANS,
-          fontWeight: 600,
-          fontSize: '26px',
-          color: '#F5F0EA',
-        }}
-      >
-        {t('journey.title')}<span style={{ color: '#E3C08C' }}>.</span>
-      </h1>
-      <p
-        style={{
-          margin: '10px 0 0',
-          fontFamily: FONT_SANS,
-          fontWeight: 400,
-          fontSize: '14px',
-          letterSpacing: '0.1px',
-          color: '#D2CCC5',
-        }}
-      >
-        {t('journey.subtitle')}
-      </p>
-
+      {/* İlk ekran: alt menünün üstüne kadar uzanıyor, arşive inen ok EN
+          ALTTA - menünün arkasında kesilmeden her zaman tam görünüyor. İçerik
+          küçük ekranda daha uzunsa ok da onunla birlikte aşağı kayıyor. */}
       <div
         style={{
-          marginTop: '28px',
           width: '100%',
-          maxWidth: '632px',
           display: 'flex',
+          flexDirection: 'column',
           alignItems: 'center',
+          minHeight: 'calc(100dvh - 28px - env(safe-area-inset-top) - 72px - env(safe-area-inset-bottom))',
         }}
       >
-        <div style={{ width: '36px', flexShrink: 0, display: 'flex', justifyContent: 'center' }}>
-          {hasPrev && <ArrowButton direction="left" onClick={() => goToPage(activePage - 1, -1)} />}
-        </div>
+        <VelisMark />
 
-        <div
+        <h1
           style={{
-            flex: 1,
-            maxWidth: '560px',
-            margin: '0 auto',
-            display: 'flex',
-            gap: '8px',
-            opacity: fadeVisible ? 1 : 0,
-            transform: fadeVisible ? 'translateX(0px)' : `translateX(${direction * 8}px)`,
-            transition: `opacity ${PAGE_TRANSITION_MS}ms ease-in-out, transform ${PAGE_TRANSITION_MS}ms ease-in-out`,
+            margin: '14px 0 0',
+            fontFamily: FONT_SANS,
+            fontWeight: 600,
+            fontSize: '26px',
+            color: '#F5F0EA',
           }}
         >
-          {pageDays.map((day) => (
-            <DayCard
-              key={day}
-              day={day}
-              completed={day <= journeyDay}
-              locked={!canOpen(day)}
-              onOpen={() => handleOpenDay(day)}
-              onOpenReward={() => handleOpenReward(day)}
-            />
-          ))}
-        </div>
-
-        <div style={{ width: '36px', flexShrink: 0, display: 'flex', justifyContent: 'center' }}>
-          {hasNext && <ArrowButton direction="right" onClick={() => goToPage(activePage + 1, 1)} />}
-        </div>
-      </div>
-
-      {journeyTimestampRef.current !== null && (
-        <div
-          className={cooldownMs === null ? 'journey-ready--pulse' : undefined}
+          {t('journey.title')}<span style={{ color: '#E3C08C' }}>.</span>
+        </h1>
+        <p
           style={{
-            marginTop: '18px',
+            margin: '10px 0 0',
+            fontFamily: FONT_SANS,
+            fontWeight: 400,
+            fontSize: '14px',
+            letterSpacing: '0.1px',
+            color: '#D2CCC5',
+          }}
+        >
+          {t('journey.subtitle')}
+        </p>
+
+        <div
+          style={{
+            marginTop: '28px',
             width: '100%',
-            maxWidth: '560px',
+            maxWidth: '632px',
             display: 'flex',
-            flexDirection: 'column',
             alignItems: 'center',
-            gap: '4px',
-            borderRadius: '18px',
-            border: '1px solid rgba(255, 178, 90, 0.22)',
-            background: 'rgba(255, 178, 90, 0.03)',
-            padding: '16px 20px',
-            transition: 'border-color 300ms ease-in-out, box-shadow 300ms ease-in-out',
           }}
         >
+          <div style={{ width: '36px', flexShrink: 0, display: 'flex', justifyContent: 'center' }}>
+            {hasPrev && <ArrowButton direction="left" onClick={() => goToPage(activePage - 1, -1)} />}
+          </div>
+
           <div
             style={{
-              fontFamily: FONT_SANS,
-              fontWeight: 600,
-              fontSize: '11px',
-              letterSpacing: '1px',
-              textTransform: 'uppercase',
-              color: '#9A948C',
+              flex: 1,
+              maxWidth: '560px',
+              margin: '0 auto',
+              display: 'flex',
+              gap: '8px',
+              opacity: fadeVisible ? 1 : 0,
+              transform: fadeVisible ? 'translateX(0px)' : `translateX(${direction * 8}px)`,
+              transition: `opacity ${PAGE_TRANSITION_MS}ms ease-in-out, transform ${PAGE_TRANSITION_MS}ms ease-in-out`,
             }}
           >
-            {t('journey.nextDay.label')}
+            {pageDays.map((day) => (
+              <DayCard
+                key={day}
+                day={day}
+                completed={day <= journeyDay}
+                locked={!canOpen(day)}
+                onOpen={() => handleOpenDay(day)}
+                onOpenReward={() => handleOpenReward(day)}
+              />
+            ))}
           </div>
-          <div style={{ fontFamily: FONT_SANS, fontWeight: 400, fontSize: '14px', color: '#D2CCC5' }}>
-            {t('journey.nextDay.availableIn')}
-          </div>
-          <div
-            style={{
-              fontFamily: FONT_SANS,
-              fontWeight: 600,
-              fontSize: '22px',
-              letterSpacing: '0.5px',
-              color: '#E3C08C',
-            }}
-          >
-            {formatCooldown(cooldownMs ?? 0)}
+
+          <div style={{ width: '36px', flexShrink: 0, display: 'flex', justifyContent: 'center' }}>
+            {hasNext && <ArrowButton direction="right" onClick={() => goToPage(activePage + 1, 1)} />}
           </div>
         </div>
-      )}
 
-      {hasArchive && (
-        <>
+        {journeyTimestampRef.current !== null && (
+          <div
+            className={cooldownMs === null ? 'journey-ready--pulse' : undefined}
+            style={{
+              marginTop: '18px',
+              width: '100%',
+              maxWidth: '560px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '4px',
+              borderRadius: '18px',
+              border: '1px solid rgba(255, 178, 90, 0.22)',
+              background: 'rgba(255, 178, 90, 0.03)',
+              padding: '16px 20px',
+              transition: 'border-color 300ms ease-in-out, box-shadow 300ms ease-in-out',
+            }}
+          >
+            <div
+              style={{
+                fontFamily: FONT_SANS,
+                fontWeight: 600,
+                fontSize: '11px',
+                letterSpacing: '1px',
+                textTransform: 'uppercase',
+                color: '#9A948C',
+              }}
+            >
+              {t('journey.nextDay.label')}
+            </div>
+            <div style={{ fontFamily: FONT_SANS, fontWeight: 400, fontSize: '14px', color: '#D2CCC5' }}>
+              {t('journey.nextDay.availableIn')}
+            </div>
+            <div
+              style={{
+                fontFamily: FONT_SANS,
+                fontWeight: 600,
+                fontSize: '22px',
+                letterSpacing: '0.5px',
+                color: '#E3C08C',
+              }}
+            >
+              {formatCooldown(cooldownMs ?? 0)}
+            </div>
+          </div>
+        )}
+
+        {hasArchive && <div style={{ height: '16px', flexShrink: 0 }} />}
+        {hasArchive && (
           <button
             onClick={() => archiveRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
             aria-label={t('journey.toArchive')}
             style={{
-              marginTop: '28px',
-              width: '52px',
-              height: '52px',
+              marginTop: 'auto',
+              marginBottom: '6px',
+              width: '44px',
+              height: '44px',
               borderRadius: '50%',
               border: '1px solid rgba(255, 255, 255, 0.18)',
               background: 'rgba(255, 255, 255, 0.04)',
@@ -481,14 +494,17 @@ export default function Journey() {
               flexShrink: 0,
             }}
           >
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 5v14M6 13l6 6 6-6" />
             </svg>
           </button>
-          <div ref={archiveRef} style={{ marginTop: '56px', width: '100%', display: 'flex', justifyContent: 'center', scrollMarginTop: 'calc(24px + env(safe-area-inset-top))' }}>
-            <StoryArchive />
-          </div>
-        </>
+        )}
+      </div>
+
+      {hasArchive && (
+        <div ref={archiveRef} style={{ marginTop: '56px', width: '100%', display: 'flex', justifyContent: 'center', scrollMarginTop: 'calc(24px + env(safe-area-inset-top))' }}>
+          <StoryArchive />
+        </div>
       )}
 
       <div style={{ height: 'calc(108px + env(safe-area-inset-bottom))', flexShrink: 0 }} />

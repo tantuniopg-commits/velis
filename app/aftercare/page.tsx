@@ -202,7 +202,7 @@ function AftercareContent() {
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '64px 24px 96px',
+        padding: 'max(64px, calc(env(safe-area-inset-top) + 20px)) 24px 96px',
         opacity: mounted ? 1 : 0,
         transition: 'opacity 500ms ease-in-out',
       }}

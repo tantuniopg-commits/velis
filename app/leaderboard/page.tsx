@@ -500,7 +500,8 @@ export default function Leaderboard() {
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        padding: '56px 20px 0',
+        // Başlık kaldırıldı - içerik doğrudan durum çubuğunun altından başlıyor.
+        padding: 'max(28px, calc(env(safe-area-inset-top) + 16px)) 20px 0',
       }}
     >
       {storyUsers.length > 0 && (
@@ -610,7 +611,7 @@ export default function Leaderboard() {
             pointerEvents: overlayVisible ? 'auto' : 'none',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 20px 0' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 'max(20px, calc(env(safe-area-inset-top) + 8px)) 20px 0' }}>
             <button
               onClick={closeProfile}
               aria-label="Back"
