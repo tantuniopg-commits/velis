@@ -5,6 +5,7 @@ import { AppNavProvider } from "./contexts/AppNavContext";
 import { LocaleProvider } from "./contexts/LocaleContext";
 import GlobalNav from "./GlobalNav";
 import ConnectionGate from "./ConnectionGate";
+import NotificationsBoot from "./NotificationsBoot";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -52,6 +53,7 @@ export default function RootLayout({
             <ConnectionGate>
               {children}
               <GlobalNav />
+              <NotificationsBoot />
             </ConnectionGate>
           </AppNavProvider>
         </LocaleProvider>

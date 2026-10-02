@@ -102,6 +102,66 @@ deseni koru.
 - `package.json` version: `0.1.0` (Next.js projesinin kendi meta verisi,
   App Store'a yansımıyor, düşük öncelik).
 
+## Bildirimler
+
+Native (sistem) bildirimleri - uygulama içi banner DEĞİL, telefonun
+bildirim merkezine düşen, kapalıyken bile tetiklenen gerçek bildirimler.
+
+- **Mimari**: TEK servis katmanı, `app/services/notifications/` - her
+  ekran/iş mantığı (ayarlar sayfası, aftercare, `lib/journey.ts`
+  `completeRitual`) SADECE `app/services/notifications/index.ts`'ten import
+  eder, alt modülleri (`scheduler.ts`, `store.ts`, `copy.ts`,
+  `permissions.ts`, `deepLink.ts`, `remote.ts`) doğrudan değil.
+- **Faz 1 (aktif)**: tamamen cihaz-yerel, `@capacitor/local-notifications`
+  ile. Sunucu YOK - zamanlama, metin seçimi, sessiz saat/günlük sınır
+  mantığının tamamı istemcide (`scheduler.ts`). Native `repeats:true`
+  (takvim bazlı) tetikleyici BİLİNÇLİ OLARAK kullanılmıyor - her tür için
+  tek seferlik `at:Date` kurulup her "re-arm" anında (app açılışı, ritüel
+  tamamlanması, ayar değişikliği) yeniden hesaplanıyor; sebep: "bugün
+  ritüel yapıldıysa o günün hatırlatmasını iptal et" gibi günlük
+  istisnalar native tekrarlayan tetikleyicide desteklenmiyor.
+- **Faz 2 (iskelet, AKTİF DEĞİL)**: `services/notifications/remote.ts` -
+  `@capacitor/push-notifications` kurulu ama hiçbir yerden çağrılmıyor.
+  Etkinleştirmek için Xcode'da Push Notifications + Background Modes
+  capability'leri, Apple Developer portalında provisioning profili yenisi,
+  ve sunucuda token saklayacak bir alan gerekiyor.
+- **4 tür**: `ritualReminder` (kullanıcının seçtiği saat(ler), günlük),
+  `hardMoment` (craving-riskli saatlerden X dk önce), `milestone` (1/3/7/
+  14/30/90 gün serisine ulaşınca anında, bkz. `MILESTONE_DAYS`), `checkin`
+  (2-3 gün açılmazsa TEK bir yumuşak hatırlatma, sonra kullanıcı tekrar
+  açana kadar susuyor).
+- **Ton kuralları (ASLA ihlal edilmez)**: suçlayıcı/baskıcı/utandırıcı
+  hiçbir ifade yok ("Yine mi kaçırdın?" tarzı cümleler YASAK). Her tür için
+  TR/EN 5-8 varyasyonlu metin havuzu (`copy.ts`), art arda aynısı
+  seçilmiyor (`store.ts` `pickCopyIndex`). Yeni bir bildirim türü/metni
+  eklerken bu iki kural da geçerli.
+- **Sınırlar**: günde en fazla `MAX_NOTIFICATIONS_PER_DAY` (varsayılan 3,
+  sabit - kullanıcı değiştiremiyor) bildirim; sessiz saatler varsayılan
+  23:00-08:00, kullanıcı Ayarlar'dan değiştirebiliyor - bu aralığa düşen
+  bir bildirim İPTAL değil, aralığın BİTİŞİNE ertelenir.
+- **İzin akışı**: ilk açılışta SORULMUYOR. İlk ritüel tamamlanıp
+  aftercare'in sonunda kendi "soft-ask" ekranımız (`aftercare/
+  NotificationSoftAsk.tsx`) gösteriliyor; kullanıcı orada "evet" demeden
+  gerçek iOS/Android sistem izni (`requestPermissions()`) HİÇ
+  tetiklenmiyor - iOS bir uygulamaya izni tekrar sorma hakkı tanımadığı
+  için bu sıra kritik. Reddedilirse Ayarlar'dan tekrar denenebilir; sistem
+  düzeyinde kalıcı reddedilmişse `openSystemSettings()` ile `app-settings:`
+  üzerinden doğrudan iOS Ayarlar'a yönlendiriliyor.
+- **Deep link haritası**: `ritualReminder`/`hardMoment` → `/` (ritüel
+  ekranı), `milestone` → `/journey` (ya da ödül günüyse `/reward?day=N`),
+  `checkin` → `/`. Tıklama, ön plan/arka plan/kapalı HER ÜÇ durumda da
+  `deepLink.ts`'teki tek `localNotificationActionPerformed` listener'ından
+  geçiyor (Capacitor cold start'ta bekleyen eylemi JS tarafı listener'ı
+  bağlayana kadar tutuyor) - gerçek bir URL scheme/universal link YOK, saf
+  istemci tarafı `router.push`.
+- **Android**: şu an `android/` projesi YOK (sadece iOS hedefleniyor,
+  `cap add android` hiç çalıştırılmadı). Plugin config/kanal kodu
+  (`scheduler.ts` `ensureListChannelReady`) hazır ama platform
+  eklenene kadar test edilemez/çalışmaz.
+- Mevcut `dailyRitualReminder` (Ayarlar > Bildirimler ilk satır) bu
+  sistemden AYRI - o, `server/src/jobs/cooldownReminder.js`'in attığı bir
+  E-POSTA hatırlatması, native bildirimle karıştırılmamalı.
+
 ## Bilinen bekleyen işler (backlog)
 
 - TR App Store lokalizasyonu (şu an sadece İngilizce liste)

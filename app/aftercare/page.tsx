@@ -15,6 +15,8 @@ import { isGuideCompleted, setGuideCompleted } from '../lib/guide'
 import { getGuideScript } from '../guide/guideScript'
 import GuideOverlay from '../guide/GuideOverlay'
 import { useLocale } from '../contexts/LocaleContext'
+import NotificationSoftAsk from './NotificationSoftAsk'
+import { shouldShowSoftAsk } from '../services/notifications'
 
 function triggerHaptic() {
   if (typeof window !== 'undefined' && 'vibrate' in navigator) {
@@ -89,6 +91,21 @@ function AftercareContent() {
   // rehber bir daha HİÇBİR yerde görünmüyor.
   const [showGuide, setShowGuide] = useState(false)
   useEffect(() => setShowGuide(isFirstRitual && !isGuideCompleted()), [isFirstRitual])
+
+  // Bildirim soft-ask'ı (bkz. talep md.2, NotificationSoftAsk.tsx) - SADECE
+  // gerçek ilk ritüelin ardından VE daha önce hiç gösterilmediyse (bkz.
+  // services/notifications/permissions.ts shouldShowSoftAsk). Continue
+  // butonu bunun yerine bu katmanı açıyor, karar verilince asıl gezinme
+  // (goNext) devreye giriyor - bkz. aşağıdaki buton onClick'i.
+  const [showSoftAsk, setShowSoftAsk] = useState(false)
+  const goNext = () => {
+    if (isFirstRitual) {
+      setAppState('GUEST')
+      refreshAppState()
+    }
+    const day = content?.day ?? 1
+    router.push(day % 7 === 0 ? `/reward?day=${day}` : '/journey')
+  }
 
   // İlk kullanıcının Day 1 Aftercare ekranı - Continue'a basana kadar alt
   // navigasyon tamamen gizli (bkz. app/page.tsx'teki aynı mantık, Ritual
@@ -397,12 +414,11 @@ function AftercareContent() {
           className="journey-continue-btn"
           onClick={() => {
             triggerHaptic()
-            if (isFirstRitual) {
-              setAppState('GUEST')
-              refreshAppState()
+            if (isFirstRitual && shouldShowSoftAsk()) {
+              setShowSoftAsk(true)
+              return
             }
-            const day = content?.day ?? 1
-            router.push(day % 7 === 0 ? `/reward?day=${day}` : '/journey')
+            goNext()
           }}
           style={{
             padding: '13px 38px',
@@ -437,6 +453,15 @@ function AftercareContent() {
           onSkip={() => {
             setGuideCompleted()
             setShowGuide(false)
+          }}
+        />
+      )}
+
+      {showSoftAsk && (
+        <NotificationSoftAsk
+          onDecision={() => {
+            setShowSoftAsk(false)
+            goNext()
           }}
         />
       )}
