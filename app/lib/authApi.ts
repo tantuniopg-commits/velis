@@ -177,6 +177,11 @@ export function deleteStoryRequest(token: string) {
   return request<{ ok: true }>('DELETE', '/api/auth/story', undefined, token)
 }
 
+// Bu cihaza anında test bildirimi (bkz. server/src/controllers/pushController.js).
+export function sendTestPushRequest(token: string) {
+  return request<{ sent: number; failed: string[] }>('POST', '/api/auth/push-test', undefined, token)
+}
+
 export function storyUrl(userId: string | undefined, version: number | undefined): string | undefined {
   if (!userId || !version) return undefined
   const base = apiBase()

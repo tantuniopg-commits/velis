@@ -13,6 +13,7 @@ const apn = require('@parse/node-apn')
 const BUNDLE_ID = 'com.forsvelis.app'
 
 let provider // lazy, bir kez oluşturulup yeniden kullanılıyor
+let sandboxProvider
 let triedInit = false
 
 function getProvider() {
@@ -25,21 +26,21 @@ function getProvider() {
     console.warn('[apn] APNS_KEY/APNS_KEY_ID/APNS_TEAM_ID eksik - push gönderimi devre dışı (local bildirim yok, sadece bu özellik).')
     return null
   }
+  // Render'da çok satırlı env değerleri genelde literal "\n" olarak
+  // saklanıyor - gerçek satır sonuna çeviriyoruz, gerçek newline'lı
+  // girilmişse bu replace zaten no-op.
+  const token = { key: key.replace(/\\n/g, '\n'), keyId, teamId }
   try {
-    provider = new apn.Provider({
-      token: {
-        // Render'da çok satırlı env değerleri genelde literal "\n" olarak
-        // saklanıyor - gerçek satır sonuna çeviriyoruz, gerçek newline'lı
-        // girilmişse bu replace zaten no-op.
-        key: key.replace(/\\n/g, '\n'),
-        keyId,
-        teamId,
-      },
-      production: true, // App Store/TestFlight derlemeleri her zaman production APNs kullanır
-    })
+    // App Store/TestFlight derlemeleri production APNs kullanır.
+    provider = new apn.Provider({ token, production: true })
+    // Xcode'dan cihaza kurulan geliştirme derlemelerinin token'ları SADECE
+    // sandbox'ta geçerli - production onları BadDeviceToken ile reddediyor.
+    // O durumda aynı bildirimi sandbox'a bir kez daha deniyoruz (bkz. sendPush).
+    sandboxProvider = new apn.Provider({ token, production: false })
   } catch (err) {
     console.error('[apn] Provider oluşturulamadı', err)
     provider = null
+    sandboxProvider = null
   }
   return provider
 }
@@ -53,10 +54,13 @@ async function sendPush(token, { title, body, target }) {
   note.sound = 'default'
   note.topic = BUNDLE_ID
   note.payload = { target }
-  const result = await p.send(note, token)
+  let result = await p.send(note, token)
+  const badToken = result.failed?.some((f) => f.response?.reason === 'BadDeviceToken')
+  if (badToken && sandboxProvider) result = await sandboxProvider.send(note, token)
   if (result.failed?.length) {
     console.error('[apn] gönderim başarısız', result.failed.map((f) => ({ reason: f.response?.reason, status: f.status })))
   }
+  return { sent: result.sent?.length || 0, failed: (result.failed || []).map((f) => f.response?.reason || String(f.status || f.error || 'unknown')) }
 }
 
 module.exports = { sendPush }
