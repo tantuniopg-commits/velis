@@ -776,6 +776,14 @@ function Landing() {
           alignItems: 'center',
           width: '100%',
           maxWidth: '640px',
+          // Kısa ekranlarda (ör. overtime + "Ritüeli Bitir" butonu birlikte
+          // 130px'lik başlık alanının çok ötesine taşınca) içerik alt tab
+          // bar'ın arkasında kesilip erişilemez kalmasın diye bu sütun
+          // KENDİ İÇİNDE kaydırılabiliyor - sayaç/ritüel state'ine dokunmuyor,
+          // sadece görünürlüğü garanti ediyor.
+          maxHeight: '100%',
+          overflowY: 'auto',
+          WebkitOverflowScrolling: 'touch',
           opacity: mounted ? 1 : 0,
           transform: mounted ? 'translateY(0px)' : 'translateY(8px)',
           transition: 'opacity 700ms ease-out, transform 700ms ease-out',
@@ -1057,11 +1065,11 @@ function Landing() {
           <div
             style={{
               position: 'absolute',
-              top: '36px',
+              top: '22px',
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
-              gap: '18px',
+              gap: '12px',
               opacity: phase === 'ritual' ? 1 : 0,
               transition: 'opacity 500ms ease-in-out',
               pointerEvents: 'none',
@@ -1071,7 +1079,7 @@ function Landing() {
               style={{
                 fontFamily: FONT_SANS,
                 fontWeight: 300,
-                fontSize: '48px',
+                fontSize: '34px',
                 color: secondsLeft === 0 ? '#E3C08C' : '#F5F0EA',
                 textAlign: 'center',
                 lineHeight: 1,
@@ -1089,20 +1097,20 @@ function Landing() {
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
-                gap: '8px',
+                gap: '6px',
               }}
             >
               <button
                 onClick={handleFinishRitual}
                 style={{
-                  padding: '13px 30px',
+                  padding: '10px 24px',
                   borderRadius: '999px',
                   border: '1px solid rgba(255, 178, 90, 0.5)',
                   background: 'rgba(255, 178, 90, 0.06)',
                   color: '#E3C08C',
                   fontFamily: FONT_SANS,
                   fontWeight: 600,
-                  fontSize: '14px',
+                  fontSize: '13px',
                   letterSpacing: '0.2px',
                   cursor: 'pointer',
                 }}
@@ -1111,10 +1119,10 @@ function Landing() {
               </button>
               <div
                 style={{
-                  maxWidth: '240px',
+                  maxWidth: '220px',
                   fontFamily: FONT_SANS,
                   fontWeight: 400,
-                  fontSize: '12px',
+                  fontSize: '11px',
                   lineHeight: 1.4,
                   color: '#8F8A83',
                   textAlign: 'center',
