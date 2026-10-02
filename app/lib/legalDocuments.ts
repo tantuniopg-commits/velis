@@ -21,6 +21,10 @@
 // App Store Guideline 1.2 gereği. Bildirimlere "hızla" bakılacağı yazıyor;
 // somut bir süre (ör. 24 saat) SÖZ VERİLMEDİ - vermek istenirse buraya ve iki
 // dile birlikte eklenmeli.
+//
+// 2026-10-02: ritüel before/after fotoğrafları (cihazda kalır; sadece kullanıcı
+// "Liderlik tablosunda paylaş" derse 24 saatliğine sunucuya gider) - Terms 6,
+// Privacy 1, 3, 6.
 
 export type LegalSection = {
   heading: string
@@ -38,7 +42,7 @@ export type LegalDocument = {
 
 const TERMS_OF_SERVICE_EN: LegalDocument = {
   title: 'Terms of Service',
-  lastUpdated: 'Last Updated: September 21, 2026',
+  lastUpdated: 'Last Updated: October 2, 2026',
   intro: [
     'These Terms of Service ("Terms") are an agreement between you and the developer of Velis ("Velis", "we", "us"). By downloading, accessing, or using the Velis app, you agree to these Terms. If you do not agree, do not use the app.',
   ],
@@ -92,6 +96,7 @@ const TERMS_OF_SERVICE_EN: LegalDocument = {
       heading: '7. Your Content, Reporting and Blocking',
       paragraphs: [
         'The only content you can add to Velis is your display name and an optional profile photo. You are responsible for it, and you keep ownership of your photo. You give us a limited, non-exclusive licence to store your photo and show it to other users inside Velis for as long as you keep it; that licence ends when you remove the photo or delete your account. You can change or remove your photo at any time with the pencil on your Profile (or in Settings → Account).',
+        'You can also share a before/after ritual image on the leaderboard. This is always your choice, it is visible to other users for 24 hours, and the same rules and licence apply to it as to your profile photo. You can remove it earlier from the leaderboard.',
         'Only add a photo you have the right to use, and that shows you or something appropriate. Do not add content that:',
       ],
       bullets: [
@@ -158,7 +163,7 @@ const TERMS_OF_SERVICE_EN: LegalDocument = {
 
 const TERMS_OF_SERVICE_TR: LegalDocument = {
   title: 'Kullanım Koşulları',
-  lastUpdated: 'Son Güncelleme: 21 Eylül 2026',
+  lastUpdated: 'Son Güncelleme: 2 Ekim 2026',
   intro: [
     'Bu Kullanım Koşulları ("Koşullar"), sizinle Velis geliştiricisi ("Velis", "biz", "bize") arasında bir sözleşmedir. Velis uygulamasını indirerek, erişerek veya kullanarak bu Koşulları kabul etmiş olursunuz. Kabul etmiyorsanız uygulamayı kullanmayın.',
   ],
@@ -212,6 +217,7 @@ const TERMS_OF_SERVICE_TR: LegalDocument = {
       heading: '7. İçeriğiniz, Bildirme ve Engelleme',
       paragraphs: [
         'Velis’e ekleyebileceğiniz tek içerik görünen adınız ve isteğe bağlı bir profil fotoğrafınızdır. Bunlardan siz sorumlusunuz ve fotoğrafınızın sahibi siz kalırsınız. Fotoğrafınızı saklamamız ve Velis içinde diğer kullanıcılara göstermemiz için, onu tuttuğunuz sürece geçerli, sınırlı ve münhasır olmayan bir lisans verirsiniz; fotoğrafı kaldırdığınızda veya hesabınızı sildiğinizde bu lisans sona erer. Fotoğrafınızı istediğiniz zaman Profil’deki kalemle (veya Ayarlar → Hesap’tan) değiştirebilir ya da kaldırabilirsiniz.',
+        'Ayrıca liderlik tablosunda ritüel öncesi/sonrası (before/after) bir görsel paylaşabilirsiniz. Bu her zaman sizin seçiminizdir, diğer kullanıcılara 24 saat görünür ve profil fotoğrafınızla aynı kurallar ve lisans onun için de geçerlidir. Liderlik tablosundan daha erken kaldırabilirsiniz.',
         'Yalnızca kullanma hakkınız olan ve sizi ya da uygun bir görseli gösteren bir fotoğraf ekleyin. Şu içerikleri eklemeyin:',
       ],
       bullets: [
@@ -278,7 +284,7 @@ const TERMS_OF_SERVICE_TR: LegalDocument = {
 
 const PRIVACY_POLICY_EN: LegalDocument = {
   title: 'Privacy Policy',
-  lastUpdated: 'Last Updated: September 21, 2026',
+  lastUpdated: 'Last Updated: October 2, 2026',
   intro: [
     'Velis ("Velis", "we", "our", or "us") respects your privacy. This Privacy Policy explains what information we collect when you use the Velis mobile application, why we collect it, how it is stored and shared, and the choices and rights you have.',
     'Velis is operated by an independent developer based in Türkiye. For data-protection purposes, that developer is the data controller for your personal data and can be reached at contact@forsvelis.com.',
@@ -299,7 +305,7 @@ const PRIVACY_POLICY_EN: LegalDocument = {
         'Information created as you use the app: your in-app progress and activity, including journey day, current streak, total XP, number of rituals completed, total ritual time, and your reward-claim history. If you are signed in, this is stored on our servers so it can sync across your devices.',
         'Preferences: your chosen language and notification settings.',
         'Account metadata: the date your account was created and, for security, timestamps of certain account events.',
-        'Optional content and safety data: a profile photo if you add one, the reports you send about other users, and the list of users you block (see "3. Profile Photos, Reports and Blocking" below).',
+        'Optional content and safety data: a profile photo if you add one, a before/after ritual image if you choose to share it on the leaderboard, the reports you send about other users, and the list of users you block (see "3. Profile Photos, Reports and Blocking" below).',
         'You can use the core features of Velis (the ritual, the journey, local progress) without creating an account. In that case your progress stays only on your device and is not sent to us.',
       ],
     },
@@ -325,7 +331,8 @@ const PRIVACY_POLICY_EN: LegalDocument = {
       paragraphs: [
         'Adding a profile photo is optional. If you add one, Velis receives only the picture you choose or take; it never has access to the rest of your photo library. The app crops the picture to a square and shrinks it on your device before uploading, so we store a small copy in our database, not the original.',
         'Your photo is shown to other Velis users on the leaderboard, next to your name and stats. It is served from a web address that does not require signing in, so anyone who has that address can open the image. You can change or remove your photo at any time (Profile → pencil icon, or Settings → Account), and it is deleted when you delete your account.',
-        'Camera and photo access: Velis asks for camera or photo-library access only when you choose to add a photo, and uses it only for that purpose.',
+        'Before/after ritual photos: on your daily ritual, Velis offers to take a photo before and after. You can always skip it. The photos are combined into one image on your device and stay on your device; Velis does not upload them unless you tap "Share on the leaderboard". If you do, a smaller copy of the combined image is stored and shown to other users on the leaderboard for 24 hours, then deleted automatically. You can remove it earlier, and it is deleted when you delete your account. When you tap Share or Save, the image goes to the app or your photo library that you choose.',
+        'Camera and photo access: Velis asks for camera or photo-library access only when you choose to add a photo, take a ritual photo, or save your ritual image, and uses it only for that purpose.',
         'Reports and blocking: you can report or block another user from their leaderboard screen. When you report someone we store the report (who reported whom, and any reason given) and email it to our support address so that we can review it. A photo that several different people report is hidden automatically. When you block someone, we store their account ID in your block list so that it applies on all your devices. Reports are used only for moderation and safety.',
       ],
     },
@@ -356,7 +363,7 @@ const PRIVACY_POLICY_EN: LegalDocument = {
       paragraphs: [
         'We keep your account data for as long as your account exists. Verification and password-reset codes are short-lived and are deleted after they expire or are used.',
         'When you delete your account, your account and its associated data are permanently removed from our servers. Backups, if any, are overwritten on a rolling basis. We may retain limited information where required to comply with legal obligations or resolve disputes.',
-        'Your profile photo is kept until you remove it or delete your account. Reports about you, reports you made, and your block list are deleted when the accounts involved are deleted; reports about a photo are also cleared when that photo is replaced or removed.',
+        'A before/after image you share on the leaderboard is deleted automatically after 24 hours. Your profile photo is kept until you remove it or delete your account. Reports about you, reports you made, and your block list are deleted when the accounts involved are deleted; reports about a photo are also cleared when that photo is replaced or removed.',
       ],
     },
     {
@@ -414,7 +421,7 @@ const PRIVACY_POLICY_EN: LegalDocument = {
 
 const PRIVACY_POLICY_TR: LegalDocument = {
   title: 'Gizlilik Politikası',
-  lastUpdated: 'Son Güncelleme: 21 Eylül 2026',
+  lastUpdated: 'Son Güncelleme: 2 Ekim 2026',
   intro: [
     'Velis ("Velis", "biz", "bizim" veya "bize") gizliliğinize saygı duyar. Bu Gizlilik Politikası; Velis mobil uygulamasını kullandığınızda hangi bilgileri topladığımızı, neden topladığımızı, verilerinizin nasıl saklanıp paylaşıldığını ve sahip olduğunuz seçim ve hakları açıklar.',
     'Velis, Türkiye merkezli bağımsız bir geliştirici tarafından işletilmektedir. Veri koruma açısından bu geliştirici, kişisel verilerinizin veri sorumlusudur ve contact@forsvelis.com adresinden kendisine ulaşılabilir.',
@@ -435,7 +442,7 @@ const PRIVACY_POLICY_TR: LegalDocument = {
         'Uygulamayı kullandıkça oluşan bilgiler: uygulama içi ilerlemeniz ve etkinliğiniz — yolculuk günü, mevcut seri, toplam XP, tamamlanan ritüel sayısı, toplam ritüel süresi ve ödül alma geçmişiniz. Giriş yaptıysanız bu veriler, cihazlarınız arasında senkronlanabilmesi için sunucularımızda saklanır.',
         'Tercihler: seçtiğiniz dil ve bildirim ayarları.',
         'Hesap bilgileri: hesabınızın oluşturulma tarihi ve güvenlik amacıyla bazı hesap olaylarının zaman damgaları.',
-        'İsteğe bağlı içerik ve güvenlik verileri: eklerseniz bir profil fotoğrafı, diğer kullanıcılar hakkında gönderdiğiniz bildirimler ve engellediğiniz kullanıcıların listesi (aşağıdaki "3. Profil Fotoğrafları, Bildirme ve Engelleme" bölümüne bakın).',
+        'İsteğe bağlı içerik ve güvenlik verileri: eklerseniz bir profil fotoğrafı, liderlik tablosunda paylaşmayı seçerseniz ritüel öncesi/sonrası bir görsel, diğer kullanıcılar hakkında gönderdiğiniz bildirimler ve engellediğiniz kullanıcıların listesi (aşağıdaki "3. Profil Fotoğrafları, Bildirme ve Engelleme" bölümüne bakın).',
         'Velis\'in çekirdek özelliklerini (ritüel, yolculuk, yerel ilerleme) hesap oluşturmadan kullanabilirsiniz. Bu durumda ilerlemeniz yalnızca cihazınızda kalır ve bize gönderilmez.',
       ],
     },
@@ -461,7 +468,8 @@ const PRIVACY_POLICY_TR: LegalDocument = {
       paragraphs: [
         'Profil fotoğrafı eklemek isteğe bağlıdır. Eklerseniz Velis yalnızca seçtiğiniz veya çektiğiniz fotoğrafı alır; fotoğraf kitaplığınızın geri kalanına asla erişemez. Uygulama fotoğrafı yüklemeden önce cihazınızda kare olarak kırpar ve küçültür; böylece veritabanımızda orijinalini değil, küçük bir kopyasını saklarız.',
         'Fotoğrafınız, liderlik tablosunda adınızın ve istatistiklerinizin yanında diğer Velis kullanıcılarına gösterilir. Oturum açmayı gerektirmeyen bir web adresinden sunulur; dolayısıyla bu adresi bilen herkes görseli açabilir. Fotoğrafınızı istediğiniz zaman değiştirebilir veya kaldırabilirsiniz (Profil → kalem simgesi ya da Ayarlar → Hesap); hesabınızı sildiğinizde de silinir.',
-        'Kamera ve fotoğraf erişimi: Velis kamera veya fotoğraf kitaplığı erişimini yalnızca bir fotoğraf eklemeyi seçtiğinizde ister ve yalnızca bu amaçla kullanır.',
+        'Ritüel öncesi/sonrası fotoğraflar: Günlük ritüelinizde Velis öncesinde ve sonrasında bir fotoğraf çekmeyi önerir. Bunu her zaman atlayabilirsiniz. Fotoğraflar cihazınızda tek bir görselde birleştirilir ve cihazınızda kalır; "Liderlik tablosunda paylaş"a dokunmadığınız sürece Velis bunları yüklemez. Dokunursanız birleştirilmiş görselin küçültülmüş bir kopyası saklanır, liderlik tablosunda diğer kullanıcılara 24 saat gösterilir ve ardından otomatik olarak silinir. Daha erken kaldırabilirsiniz; hesabınızı sildiğinizde de silinir. Paylaş veya Kaydet’e dokunduğunuzda görsel, seçtiğiniz uygulamaya veya fotoğraf kitaplığınıza gider.',
+        'Kamera ve fotoğraf erişimi: Velis kamera veya fotoğraf kitaplığı erişimini yalnızca bir fotoğraf eklemeyi, ritüel fotoğrafı çekmeyi veya ritüel görselinizi kaydetmeyi seçtiğinizde ister ve yalnızca bu amaçla kullanır.',
         'Bildirme ve engelleme: Bir kullanıcıyı liderlik tablosundaki ekranından bildirebilir veya engelleyebilirsiniz. Birini bildirdiğinizde bildirimi (kimin kimi bildirdiği ve varsa belirttiğiniz neden) saklar ve inceleyebilmemiz için destek adresimize e-postayla göndeririz. Birkaç farklı kişi tarafından bildirilen bir fotoğraf otomatik olarak gizlenir. Birini engellediğinizde, tüm cihazlarınızda geçerli olması için hesap kimliğini engel listenizde saklarız. Bildirimler yalnızca moderasyon ve güvenlik için kullanılır.',
       ],
     },
@@ -492,7 +500,7 @@ const PRIVACY_POLICY_TR: LegalDocument = {
       paragraphs: [
         'Hesap verilerinizi hesabınız var olduğu sürece saklarız. Doğrulama ve şifre sıfırlama kodları kısa ömürlüdür; süresi dolduğunda veya kullanıldığında silinir.',
         'Hesabınızı sildiğinizde, hesabınız ve ilişkili verileriniz sunucularımızdan kalıcı olarak kaldırılır. Varsa yedekler dönüşümlü olarak üzerine yazılır. Yasal yükümlülüklere uymak veya uyuşmazlıkları çözmek için gereken sınırlı bilgiyi saklayabiliriz.',
-        'Profil fotoğrafınız, siz kaldırana veya hesabınızı silene kadar saklanır. Hakkınızdaki bildirimler, sizin yaptığınız bildirimler ve engel listeniz, ilgili hesaplar silindiğinde silinir; bir fotoğraf hakkındaki bildirimler, o fotoğraf değiştirildiğinde veya kaldırıldığında da temizlenir.',
+        'Liderlik tablosunda paylaştığınız ritüel öncesi/sonrası görsel 24 saat sonra otomatik olarak silinir. Profil fotoğrafınız, siz kaldırana veya hesabınızı silene kadar saklanır. Hakkınızdaki bildirimler, sizin yaptığınız bildirimler ve engel listeniz, ilgili hesaplar silindiğinde silinir; bir fotoğraf hakkındaki bildirimler, o fotoğraf değiştirildiğinde veya kaldırıldığında da temizlenir.',
       ],
     },
     {

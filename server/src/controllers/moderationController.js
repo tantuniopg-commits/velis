@@ -1,5 +1,6 @@
 const User = require('../models/User')
 const Report = require('../models/Report')
+const Story = require('../models/Story')
 const { toPublicUser, displayNameForLeaderboard } = require('./authController')
 const { sendModerationReportEmail } = require('../lib/mailer')
 
@@ -52,6 +53,12 @@ async function reportUser(req, res) {
     if (count >= REPORT_HIDE_THRESHOLD && target.avatarVersion && !target.avatarHidden) {
       await User.updateOne({ _id: id }, { $set: { avatarHidden: true } })
       hidden = true
+    }
+    // Bildirim kullanıcı başına - aynı eşikte aktif before/after hikayesi de
+    // gizleniyor (fotoğraf yüklü olmasa bile).
+    if (count >= REPORT_HIDE_THRESHOLD) {
+      const res2 = await Story.updateOne({ user: id, hidden: false }, { $set: { hidden: true } })
+      if (res2.modifiedCount) hidden = true
     }
     const reporter = await User.findById(req.userId).select('name').lean()
     await sendModerationReportEmail({

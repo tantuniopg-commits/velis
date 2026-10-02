@@ -13,8 +13,11 @@ import WhoAreYouScreen from './WhoAreYouScreen'
 import WelcomeScreen from './WelcomeScreen'
 import { useAppNav } from './contexts/AppNavContext'
 import { useLocale } from './contexts/LocaleContext'
-import { completeRitual } from './lib/journey'
-import { getStoredStats } from './lib/auth'
+import { completeRitual, getCooldownRemainingMs } from './lib/journey'
+import { getStoredStats, getStoredToken, getStoredUser } from './lib/auth'
+import { getBeforePhoto, setBeforePhoto, clearRitualPhotos } from './lib/ritualPhotos'
+import CameraCapture from './story/CameraCapture'
+import StoryResult from './story/StoryResult'
 import { playSound, startAmbient, stopAmbient } from './lib/sound'
 import {
   loadRitualSession,
@@ -238,6 +241,16 @@ function Landing() {
   // REGISTERED olduktan sonra bu ekstra ipucu bir daha hiç görünmüyor. Mount
   // SONRASI okunuyor (localStorage) - hydration uyuşmazlığı riskini önlüyor.
   const [preRegistration, setPreRegistration] = useState(false)
+
+  // ---- Before/after fotoğrafı ---- Hesabı olan kullanıcının GÜNÜN ritüelinde
+  // (yolculuk gününü ilerletecek olan, bkz. lib/journey.ts) çekirdeğe basınca
+  // önce kamera açılıyor; "Yükle" ile aynı aktivasyon akışı başlıyor. Ritüel
+  // bitince "sonra" fotoğrafı çekiliyor ve before/after görseli gösteriliyor
+  // (bkz. app/story/). Gün içindeki ekstra ritüeller ve ilk ritüel (henüz
+  // hesap yok) eskisi gibi kamerasız. Her adım atlanabilir.
+  const [capture, setCapture] = useState<'before' | 'after' | null>(null)
+  const [story, setStory] = useState<{ before: string; after: string; day: number; name: string } | null>(null)
+  const storyDayRef = useRef(0)
 
   useEffect(() => {
     isFirstEverRitualRef.current = getStoredStats().journeyTimestamp === null
@@ -529,6 +542,7 @@ function Landing() {
       if (document.visibilityState !== 'hidden') return
       if (phase !== 'activating' && phase !== 'ready' && phase !== 'ritual') return
       clearRitualSession()
+      clearRitualPhotos()
       stopAmbient()
       if (countdownRef.current) {
         clearInterval(countdownRef.current)
@@ -637,6 +651,11 @@ function Landing() {
     stopAmbient()
     playSound('complete')
     setPhase('complete')
+    // Ritüel öncesi fotoğraf çekildiyse şimdi "sonra" fotoğrafı.
+    if (getBeforePhoto()) {
+      storyDayRef.current = after.journeyDay
+      setCapture('after')
+    }
   }
 
   // Bitiş ekranı satırları - obje sessizce uykuya dönerken teker teker,
@@ -666,6 +685,60 @@ function Landing() {
     // cümlesi bitip rehber kapanana kadar bekletiyoruz. Rehber daha önce
     // tamamlandıysa (showRitualGuide=false) bu hiç devreye girmiyor.
     if (showRitualGuide && !idleGuideDone) return
+    if (isPhotoRitual() && !getBeforePhoto()) {
+      triggerHaptic()
+      setCapture('before')
+      return
+    }
+    beginActivation()
+  }
+
+  // Günün ritüeli mi: giriş yapmış (sunucuya yükleyebilir) ve bu ritüel
+  // yolculuk gününü ilerletecek (24 saatlik soğuma dolmuş). İlk ritüel
+  // (journeyTimestamp null) kapsam dışı - o akış ayrıca ele alınacak.
+  const isPhotoRitual = () => {
+    if (!getStoredToken() || !getStoredUser()) return false
+    const ts = getStoredStats().journeyTimestamp
+    return ts !== null && getCooldownRemainingMs(ts) === null
+  }
+
+  // "Yükle" / "Fotoğrafsız devam et" - ikisi de SENKRON olarak aynı
+  // aktivasyonu başlatıyor (zamanlayıcıya bağlı kapanış yok, bkz. AGENTS.md).
+  const handleBeforeConfirm = (dataUrl: string) => {
+    setBeforePhoto(dataUrl)
+    setCapture(null)
+    beginActivation()
+  }
+
+  const handleBeforeSkip = () => {
+    clearRitualPhotos()
+    setCapture(null)
+    beginActivation()
+  }
+
+  const handleAfterConfirm = (dataUrl: string) => {
+    const before = getBeforePhoto()
+    clearRitualPhotos()
+    setCapture(null)
+    const user = getStoredUser()
+    if (!before || !user) return
+    const last = user.lastName.trim()
+    const name = last ? `${user.firstName.trim()} ${last[0].toLocaleUpperCase()}.` : user.firstName.trim()
+    setStory({ before, after: dataUrl, day: storyDayRef.current, name })
+  }
+
+  const handleAfterSkip = () => {
+    clearRitualPhotos()
+    setCapture(null)
+  }
+
+  const handleStoryDone = () => {
+    setStory(null)
+    handleContinue()
+  }
+
+  const beginActivation = () => {
+    if (phase !== 'idle') return
     triggerHaptic()
     playSound('activate')
     saveRitualSession({
@@ -1288,6 +1361,10 @@ function Landing() {
           ))}
         </div>
       )}
+
+      {capture === 'before' && <CameraCapture kind="before" onConfirm={handleBeforeConfirm} onSkip={handleBeforeSkip} />}
+      {capture === 'after' && <CameraCapture kind="after" onConfirm={handleAfterConfirm} onSkip={handleAfterSkip} />}
+      {story && <StoryResult before={story.before} after={story.after} name={story.name} day={story.day} onDone={handleStoryDone} />}
     </main>
   )
 }

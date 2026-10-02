@@ -1,6 +1,8 @@
 const jwt = require('jsonwebtoken')
 const User = require('../models/User')
 const Report = require('../models/Report')
+const Story = require('../models/Story')
+const { activeStoryVersions } = require('./storyController')
 const { sendPasswordChangedEmail, sendWelcomeEmail } = require('../lib/mailer')
 const { isAdminEmail } = require('../lib/admins')
 
@@ -480,6 +482,7 @@ async function removeAccount(req, res) {
   // Bu hesapla ilgili moderasyon kayıtları da gidiyor: hakkındaki/yaptığı
   // bildirimler ve başkalarının engel listelerindeki kimliği.
   await Report.deleteMany({ $or: [{ reporter: req.userId }, { reported: req.userId }] })
+  await Story.deleteOne({ user: req.userId })
   await User.updateMany({ blockedUsers: req.userId }, { $pull: { blockedUsers: req.userId } })
   res.json({ ok: true })
 }
@@ -519,7 +522,10 @@ function displayNameForLeaderboard(full) {
 // oluşuyor (bkz. app/leaderboard/page.tsx). Şifre/email/TAM ad dönmüyor -
 // sadece kısaltılmış görünen ad + sıralama için gereken istatistikler.
 async function leaderboard(req, res) {
-  const users = await User.find({}, 'name stats avatarVersion avatarHidden').lean()
+  const [users, storyVersions] = await Promise.all([
+    User.find({}, 'name stats avatarVersion avatarHidden').lean(),
+    activeStoryVersions(),
+  ])
   res.json({
     users: users.map((u) => ({
       id: u._id,
@@ -529,6 +535,9 @@ async function leaderboard(req, res) {
       // sadece sürüm; istemci varsa GET /api/auth/avatar/:id?v=... ile çekiyor.
       // Gizlenen (bildirim alan) fotoğraf listede "yok" sayılıyor.
       avatarVersion: u.avatarHidden ? 0 : u.avatarVersion || 0,
+      // Son 24 saatteki before/after hikayesi (yoksa 0) - görselin kendisi
+      // GET /api/auth/story/:id?v=... ile ayrıca çekiliyor.
+      storyVersion: storyVersions.get(String(u._id)) || 0,
     })),
   })
 }

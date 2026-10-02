@@ -12,4 +12,6 @@ export type LBUser = {
   // Profil fotoğrafının URL'si (bkz. lib/authApi.ts avatarUrl) - yoksa
   // Avatar baş harflere düşüyor.
   avatarUrl?: string
+  // Son 24 saatteki before/after hikayesinin URL'si (bkz. lib/authApi.ts storyUrl).
+  storyUrl?: string
 }

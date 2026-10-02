@@ -84,6 +84,8 @@ app.use(
 // decodeAvatar). GLOBAL parser'dan ÖNCE gelmeli: body-parser gövdeyi bir kez
 // okuyup req._body işaretliyor, ikinci parser onu atlıyor.
 app.use('/api/auth/avatar', express.json({ limit: '150kb' }))
+// Before/after hikayesi: 720x1280 JPEG, ham tavan 350KB (bkz. storyController).
+app.use('/api/auth/story', express.json({ limit: '500kb' }))
 app.use(express.json({ limit: '16kb' }))
 
 // NoSQL operatör enjeksiyonu: `{"email": {"$gt": ""}}` gibi gövdeler
@@ -113,7 +115,8 @@ const otpLimiter = rateLimit({
 // leaderboard ekranı onlarca <img> isteği atıyor, hepsi genel 120/dk'yı
 // tüketip kullanıcının gerçek API çağrılarını 429'a düşürürdü. Kendi (bol)
 // limitleri var; sürümlü URL'ler zaten tarayıcıda önbelleğe alınıyor.
-const isAvatarRead = (req) => req.method === 'GET' && req.path.startsWith('/api/auth/avatar/')
+const isAvatarRead = (req) =>
+  req.method === 'GET' && (req.path.startsWith('/api/auth/avatar/') || req.path.startsWith('/api/auth/story/'))
 const generalLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 120, // authenticated normal kullanım (stats senkronu vb.) için bol
@@ -161,6 +164,9 @@ const moderationLimiter = rateLimit({
 app.use('/api/auth/report', moderationLimiter)
 app.use('/api/auth/block', moderationLimiter)
 app.use('/api/auth/avatar', (req, res, next) =>
+  (req.method === 'GET' ? avatarReadLimiter : avatarWriteLimiter)(req, res, next)
+)
+app.use('/api/auth/story', (req, res, next) =>
   (req.method === 'GET' ? avatarReadLimiter : avatarWriteLimiter)(req, res, next)
 )
 

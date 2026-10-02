@@ -20,6 +20,7 @@ const {
   checkPhone,
 } = require('../controllers/authController')
 const { forgotPassword, verifyResetCode, resetPassword } = require('../controllers/passwordResetController')
+const { upsertStory, removeStory, getStory, adminRemoveStory } = require('../controllers/storyController')
 const { reportUser, blockUser, unblockUser, listBlocks, listReports, adminRemoveAvatar } = require('../controllers/moderationController')
 
 const router = express.Router()
@@ -38,6 +39,10 @@ router.delete('/avatar', requireAuth, asyncHandler(removeAvatar))
 // Herkese açık - <img src> Authorization başlığı gönderemez, leaderboard'daki
 // başkalarının fotoğrafları da buradan geliyor (bkz. getAvatar).
 router.get('/avatar/:id', asyncHandler(getAvatar))
+// Ritüel before/after hikayesi (24 saat) - bkz. storyController.
+router.post('/story', requireAuth, asyncHandler(upsertStory))
+router.delete('/story', requireAuth, asyncHandler(removeStory))
+router.get('/story/:id', asyncHandler(getStory))
 // Moderasyon (App Store 1.2): bildirme + engelleme (bkz. moderationController).
 router.post('/report', requireAuth, asyncHandler(reportUser))
 router.post('/block/:id', requireAuth, asyncHandler(blockUser))
@@ -56,6 +61,7 @@ router.get('/users', requireAdmin, asyncHandler(listUsers))
 // Yönetici moderasyonu: bildirim listesi + uygunsuz fotoğrafı silme.
 router.get('/reports', requireAdmin, asyncHandler(listReports))
 router.delete('/users/:id/avatar', requireAdmin, asyncHandler(adminRemoveAvatar))
+router.delete('/users/:id/story', requireAdmin, asyncHandler(adminRemoveStory))
 // Senkron koptuğunda (ör. token süresi dolup ritüel senkronları sessizce
 // başarısız olmuşsa) bir hesabın cihazdaki gerçek ilerlemesini elle
 // yazabilmek için - bkz. authController.js adminSetStats.

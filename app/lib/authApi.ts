@@ -156,6 +156,24 @@ export function avatarUrl(userId: string | undefined, version: number | undefine
   return `${base}/api/auth/avatar/${encodeURIComponent(userId)}?v=${version}`
 }
 
+// Ritüel before/after hikayesi (bkz. server/src/controllers/storyController.js) -
+// 720x1280 JPEG data URL'i (lib/storyImage.ts). Kişi başına tek aktif hikaye,
+// 24 saat sonra sunucuda kendiliğinden siliniyor.
+export function uploadStoryRequest(token: string, image: string) {
+  return request<{ storyVersion: number }>('POST', '/api/auth/story', { image }, token)
+}
+
+export function deleteStoryRequest(token: string) {
+  return request<{ ok: true }>('DELETE', '/api/auth/story', undefined, token)
+}
+
+export function storyUrl(userId: string | undefined, version: number | undefined): string | undefined {
+  if (!userId || !version) return undefined
+  const base = apiBase()
+  if (!base) return undefined
+  return `${base}/api/auth/story/${encodeURIComponent(userId)}?v=${version}`
+}
+
 // Moderasyon (App Store 1.2) - bkz. server/src/controllers/moderationController.js.
 // Bildirim anında destek e-postasına düşüyor; aynı fotoğraf 3 farklı kişiden
 // bildirim alırsa otomatik gizleniyor. Engel sunucuda tutuluyor (cihazlar arası).
@@ -200,7 +218,14 @@ export function resetPasswordRequest(email: string, code: string, newPassword: s
   return request<{ ok: true }>('POST', '/api/auth/reset-password', { email, code, newPassword })
 }
 
-export type AuthApiLeaderboardUser = { id: string; name: string; stats?: VelisStats; avatarVersion?: number }
+export type AuthApiLeaderboardUser = {
+  id: string
+  name: string
+  stats?: VelisStats
+  avatarVersion?: number
+  // Son 24 saatteki before/after hikayesinin sürümü (0/yok = hikaye yok).
+  storyVersion?: number
+}
 export type AuthApiLeaderboardResult = { users: AuthApiLeaderboardUser[] }
 
 // Leaderboard - SADECE gerçekten kayıt olmuş kullanıcılardan oluşuyor (bkz.
