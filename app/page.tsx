@@ -1065,11 +1065,11 @@ function Landing() {
           <div
             style={{
               position: 'absolute',
-              top: '22px',
+              top: '0px',
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
-              gap: '12px',
+              gap: '10px',
               opacity: phase === 'ritual' ? 1 : 0,
               transition: 'opacity 500ms ease-in-out',
               pointerEvents: 'none',
