@@ -368,9 +368,9 @@ async function sendWelcomeEmail(to, name, locale) {
 // destek adresine ANINDA düşüyor (App Store 1.2: bildirimlere zamanında cevap).
 // Alıcı MODERATION_EMAIL, yoksa destek adresi. İngilizce, sadece ekibe gidiyor.
 // Bildirenin/bildirilenin girdiği metinler HTML'e girdiği için kaçışlanıyor.
-function escapeHtml(v) {
-  return String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c])
-}
+// (escapeHtml zaten yukarıda tanımlı - burada İKİNCİ bir tane daha vardı,
+// fonksiyonel olarak birebir aynıydı ama aynı isimle iki `function` bildirimi
+// sessizce birbirini eziyordu; kafa karışıklığı olmasın diye kaldırıldı.)
 
 async function sendModerationReportEmail(info) {
   const to = process.env.MODERATION_EMAIL || 'contact@forsvelis.com'
@@ -393,7 +393,33 @@ async function sendModerationReportEmail(info) {
   await sendEmail(to, subject, html, lines.join('\n'))
 }
 
+// Hangi sağlayıcının seçileceğini (gerçekten göndermeden) açığa çıkarıyor -
+// `/api/auth/email-test` yanıtına ekleniyor ki "SendGrid mi SMTP mi
+// kullanılıyor, yoksa hiçbiri ayarlanmamış mı" Render loglarına bakmadan
+// anlaşılsın (bkz. controllers/emailTestController.js).
+function getConfiguredProvider() {
+  if (process.env.RESEND_API_KEY) return 'resend'
+  if (process.env.SENDGRID_API_KEY) return 'sendgrid'
+  if (process.env.SMTP_HOST) return 'smtp'
+  return 'ethereal (test inbox - gerçek sağlayıcı ayarlanmamış)'
+}
+
+// Teşhis amaçlı - OTP/parola sıfırlama ile AYNI `sendEmail()` yolunu
+// kullanıyor, böylece gerçek üretim hatası (SendGrid 401/403, eksik
+// EMAIL_FROM, vb.) OLDUĞU GİBİ fırlatılıyor, yutulmuyor.
+async function sendTestEmail(to, locale) {
+  const tr = locale === 'tr'
+  await sendEmail(
+    to,
+    tr ? 'VELIS e-posta testi' : 'VELIS email test',
+    emailShell(null, `<p style="font-size:14px;color:#D2CCC5;margin:0">${tr ? 'Bu bir test e-postası - gönderim çalışıyor.' : 'This is a test email - sending works.'}</p>`),
+    tr ? 'Bu bir test e-postası - gönderim çalışıyor.' : 'This is a test email - sending works.'
+  )
+}
+
 module.exports = {
+  getConfiguredProvider,
+  sendTestEmail,
   sendModerationReportEmail,
   sendVerificationEmail,
   sendPasswordChangedEmail,

@@ -21,6 +21,7 @@ const {
 } = require('../controllers/authController')
 const { forgotPassword, verifyResetCode, resetPassword } = require('../controllers/passwordResetController')
 const { sendTestPush } = require('../controllers/pushController')
+const { sendTestEmailToSelf } = require('../controllers/emailTestController')
 const { upsertStory, removeStory, getStory, adminRemoveStory } = require('../controllers/storyController')
 const { reportUser, blockUser, unblockUser, listBlocks, listReports, adminRemoveAvatar } = require('../controllers/moderationController')
 
@@ -46,6 +47,7 @@ router.delete('/story', requireAuth, asyncHandler(removeStory))
 router.get('/story/:id', asyncHandler(getStory))
 // Kendi cihazına anında test bildirimi (bkz. pushController).
 router.post('/push-test', requireAuth, asyncHandler(sendTestPush))
+router.post('/email-test', requireAuth, asyncHandler(sendTestEmailToSelf))
 // Moderasyon (App Store 1.2): bildirme + engelleme (bkz. moderationController).
 router.post('/report', requireAuth, asyncHandler(reportUser))
 router.post('/block/:id', requireAuth, asyncHandler(blockUser))

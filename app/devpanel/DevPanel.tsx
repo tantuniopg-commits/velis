@@ -9,6 +9,7 @@ import { isDev } from '../constants/env'
 import AppStatusSection from './sections/AppStatus'
 import AppLifecycleSection from './sections/AppLifecycle'
 import PushTestSection from './sections/PushTest'
+import EmailTestSection from './sections/EmailTest'
 import UserDatabaseSection from './sections/UserDatabase'
 import VerificationSection from './sections/Verification'
 import LiveJourneyStateSection from './sections/LiveJourneyState'
@@ -103,6 +104,7 @@ export default function DevPanel({ visible, onClose }: { visible: boolean; onClo
         <AppStatusSection user={user} />
         <AppLifecycleSection />
         <PushTestSection />
+        <EmailTestSection />
         <UserDatabaseSection />
         <VerificationSection />
         <LiveJourneyStateSection />

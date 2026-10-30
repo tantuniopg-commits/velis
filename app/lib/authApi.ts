@@ -182,6 +182,14 @@ export function sendTestPushRequest(token: string) {
   return request<{ sent: number; failed: string[] }>('POST', '/api/auth/push-test', undefined, token)
 }
 
+// Kendi hesabının e-postasına anında test maili - gerçek sağlayıcı hatasını
+// (SendGrid/Resend) olduğu gibi döndürüyor (bkz.
+// server/src/controllers/emailTestController.js), Render loglarına
+// bakmadan e-posta sorunlarını teşhis etmek için.
+export function sendTestEmailRequest(token: string) {
+  return request<{ ok: boolean; provider: string; to: string; error?: string }>('POST', '/api/auth/email-test', undefined, token)
+}
+
 export function storyUrl(userId: string | undefined, version: number | undefined): string | undefined {
   if (!userId || !version) return undefined
   const base = apiBase()

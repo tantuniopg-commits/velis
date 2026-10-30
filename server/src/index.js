@@ -168,6 +168,7 @@ app.use('/api/auth/avatar', (req, res, next) =>
   (req.method === 'GET' ? avatarReadLimiter : avatarWriteLimiter)(req, res, next)
 )
 app.use('/api/auth/push-test', avatarWriteLimiter)
+app.use('/api/auth/email-test', avatarWriteLimiter)
 app.use('/api/auth/story', (req, res, next) =>
   (req.method === 'GET' ? avatarReadLimiter : avatarWriteLimiter)(req, res, next)
 )
